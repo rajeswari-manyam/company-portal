@@ -4,8 +4,10 @@ import type { LeaveRequest } from '../../types';
 import toast from 'react-hot-toast';
 
 export function useLeaves(userId?: string) {
-  const load = useCallback(() =>
-    userId ? LeaveService.getForUser(userId) : LeaveService.getAll(), [userId]);
+  const load = useCallback(
+    () => (userId ? LeaveService.getForUser(userId) : LeaveService.getAll()),
+    [userId]
+  );
 
   const [leaves, setLeaves] = useState<LeaveRequest[]>(load);
   const [search, setSearch] = useState('');
@@ -15,7 +17,8 @@ export function useLeaves(userId?: string) {
 
   const filtered = leaves.filter(l => {
     const q = search.toLowerCase();
-    const matchSearch = !q ||
+    const matchSearch =
+      !q ||
       l.userName?.toLowerCase().includes(q) ||
       l.department?.toLowerCase().includes(q) ||
       l.leaveType?.toLowerCase().includes(q);
@@ -23,11 +26,19 @@ export function useLeaves(userId?: string) {
     return matchSearch && matchStatus;
   });
 
-  const apply = async (data: Omit<LeaveRequest, 'id'>) => {
-    LeaveService.create(data);
-    refresh();
-    toast.success('Leave request submitted!');
-    return true;
+  // ✅ Now fully async — awaits the API call inside LeaveService.create
+  const apply = async (data: Omit<LeaveRequest, 'id'>): Promise<boolean> => {
+    try {
+      await LeaveService.create(data);
+      refresh();
+      toast.success('Leave request submitted!');
+      return true;
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || 'Failed to submit leave request';
+      toast.error(message);
+      return false;
+    }
   };
 
   const approve = async (id: string, reviewedBy: string, note?: string) => {
@@ -49,5 +60,17 @@ export function useLeaves(userId?: string) {
     rejected: leaves.filter(l => l.status === 'rejected').length,
   };
 
-  return { leaves, filtered, search, setSearch, statusFilter, setStatusFilter, apply, approve, reject, refresh, stats };
+  return {
+    leaves,
+    filtered,
+    search,
+    setSearch,
+    statusFilter,
+    setStatusFilter,
+    apply,
+    approve,
+    reject,
+    refresh,
+    stats,
+  };
 }

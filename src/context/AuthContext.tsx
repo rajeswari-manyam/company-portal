@@ -1,5 +1,3 @@
-// src/context/AuthContext.tsx
-
 import {
   createContext,
   useContext,
@@ -7,29 +5,29 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
+
 import {
   loginApi,
   changePasswordApi,
   getUserByIdApi,
   SESSION_KEYS,
   LOCAL_KEYS,
-} from "../service/Auth.service";
+} from "../services/Auth.service";
 
-// ─── Attendance session keys (must match Attendance.service.ts ATT_KEYS) ──────
 const ATT_SS = {
-  attendanceId:     'att_attendanceId',
+  attendanceId: 'att_attendanceId',
   attendanceStatus: 'att_status',
-  runningHours:     'att_runningHours',
+  runningHours: 'att_runningHours',
 } as const;
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
   _id: string;
+  id: string;
   name: string;
   email: string;
   role: 'admin' | 'hr' | 'employee';
   empId?: string;
+  empNumber: string;   // ✅ required — maps from backend emp.empNumber
   department?: string;
   designation?: string;
   firstLogin: boolean;
@@ -52,7 +50,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_KEY = 'hrportal_session';
 
-// ─── JWT decode helper ────────────────────────────────────────────────────────
 function decodeJwt(token: string): Record<string, unknown> {
   try {
     const payload = token.split('.')[1];
@@ -63,14 +60,18 @@ function decodeJwt(token: string): Record<string, unknown> {
   }
 }
 
-// ─── Pending session helpers ──────────────────────────────────────────────────
+function normaliseUser(raw: Omit<AuthUser, 'id'> & { id?: string }): AuthUser {
+  const _id = raw._id ?? '';
+  return { ...raw, _id, id: _id };
+}
+
 function setPendingSession(userId: string, oldPass: string, email: string) {
-  sessionStorage.setItem(SESSION_KEYS.userId,    userId);
-  sessionStorage.setItem(SESSION_KEYS.oldPass,   oldPass);
+  sessionStorage.setItem(SESSION_KEYS.userId, userId);
+  sessionStorage.setItem(SESSION_KEYS.oldPass, oldPass);
   sessionStorage.setItem(SESSION_KEYS.userEmail, email);
-  localStorage.setItem(LOCAL_KEYS.pendingUserId,  userId);
+  localStorage.setItem(LOCAL_KEYS.pendingUserId, userId);
   localStorage.setItem(LOCAL_KEYS.pendingOldPass, oldPass);
-  localStorage.setItem(LOCAL_KEYS.pendingEmail,   email);
+  localStorage.setItem(LOCAL_KEYS.pendingEmail, email);
 }
 
 function clearPendingSession() {
@@ -94,23 +95,17 @@ function getPendingOldPass(): string {
     ?? '';
 }
 
-// ─── Attendance session helpers ───────────────────────────────────────────────
-
 function saveAttendanceSession(res: Record<string, unknown>) {
-  const id      = (res.attendanceId     as string) ?? '';
-  const status  = (res.attendanceStatus as string) ?? '';
-  const hours   = String((res.runningHours as number) ?? 0);
-
-  if (!id) return; // no attendance data in this response — skip
-
-  // sessionStorage: cleared when tab closes
-  sessionStorage.setItem(ATT_SS.attendanceId,     id);
+  const id = (res.attendanceId as string) ?? '';
+  const status = (res.attendanceStatus as string) ?? '';
+  const hours = String((res.runningHours as number) ?? 0);
+  if (!id) return;
+  sessionStorage.setItem(ATT_SS.attendanceId, id);
   sessionStorage.setItem(ATT_SS.attendanceStatus, status);
-  sessionStorage.setItem(ATT_SS.runningHours,     hours);
-  // localStorage: survives HMR / hard refresh
-  localStorage.setItem(ATT_SS.attendanceId,     id);
+  sessionStorage.setItem(ATT_SS.runningHours, hours);
+  localStorage.setItem(ATT_SS.attendanceId, id);
   localStorage.setItem(ATT_SS.attendanceStatus, status);
-  localStorage.setItem(ATT_SS.runningHours,     hours);
+  localStorage.setItem(ATT_SS.runningHours, hours);
 }
 
 function clearAttendanceSession() {
@@ -120,19 +115,28 @@ function clearAttendanceSession() {
   });
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ✅ empNumber defaults to '' — never undefined so type is always satisfied
+function _buildMinimalUser(id: string, email: string, role: string): AuthUser {
+  return normaliseUser({
+    _id: id,
+    name: email.split('@')[0] ?? 'User',
+    email,
+    role: (role as AuthUser['role']) || 'employee',
+    empNumber: '',   // ✅ FIXED
+    firstLogin: false,
+  });
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user,      setUser]      = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── Restore session on mount ──────────────────────────────────────────────
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SESSION_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as AuthUser;
-        if (parsed?._id) setUser(parsed);
+        const parsed = JSON.parse(stored);
+        if (parsed?._id) setUser(normaliseUser(parsed));
         else localStorage.removeItem(SESSION_KEY);
       }
     } catch {
@@ -141,53 +145,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // ── login ─────────────────────────────────────────────────────────────────
   const login = async (email: string, password: string) => {
     try {
       const result = await loginApi({ email, password });
-
       if (!result.success) return { success: false };
 
-      // ── First login → must change password ─────────────────────────────
       if (result.changePassword) {
         setPendingSession(result.userId, password, email);
         return { success: true, mustChangePassword: true };
       }
 
-      // ── Normal login ────────────────────────────────────────────────────
-      const token = (result as { token?: string }).token ?? '';
-      const role  = (result as { role?:  string }).role  ?? '';
-
+      const token = (result as any).token ?? '';
+      const role = (result as any).role ?? '';
       localStorage.setItem(SESSION_KEYS.authToken, token);
-
-      // ✅ Persist attendanceId, attendanceStatus, runningHours from login response
-      // These power LiveAttendanceWidget without an extra API call on mount.
       saveAttendanceSession(result as unknown as Record<string, unknown>);
 
-      console.log('[AuthContext] Attendance session saved:',
-        sessionStorage.getItem(ATT_SS.attendanceId));
-
-      // Decode userId from JWT
-      const jwt    = decodeJwt(token);
+      const jwt = decodeJwt(token);
       const userId = (jwt.id ?? jwt._id ?? jwt.userId ?? jwt.sub ?? '') as string;
-      localStorage.setItem("employeeId", userId); // ✅ ADD THIS
-      let authUser: AuthUser;
+      localStorage.setItem("employeeId", userId);
 
+      let authUser: AuthUser;
       if (userId) {
         try {
           const userRes = await getUserByIdApi(userId);
-          if (userRes.success && (userRes.employee ?? userRes.user)) {
-            const emp = userRes.employee ?? userRes.user;
-            authUser = {
-              _id:         emp._id,
-              name:        emp.name        ?? '',
-              email:       emp.email       ?? email,
-              role:        emp.role        ?? role as AuthUser['role'],
-              empId:       emp.empId,
-              department:  emp.department,
+          const emp = userRes.employee ?? userRes.user;
+          if (userRes.success && emp) {
+            authUser = normaliseUser({
+              _id: emp._id,
+              name: emp.name ?? '',
+              email: emp.email ?? email,
+              role: emp.role ?? role as AuthUser['role'],
+              empId: emp.empId,
+              // ✅ backend uses empId (e.g. "EMP_01"), not empNumber
+              empNumber: emp.empNumber ?? emp.empId ?? '',
+              department: emp.department,
               designation: emp.designation,
-              firstLogin:  emp.firstLogin  ?? false,
-            };
+              firstLogin: emp.firstLogin ?? false,
+            });
           } else {
             authUser = _buildMinimalUser(userId, email, role);
           }
@@ -200,7 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(authUser);
       localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
-
+      // save empNumber for LeaveService fallback
+      if (authUser.empNumber) localStorage.setItem("empNumber", authUser.empNumber);
       return { success: true, mustChangePassword: false, role: authUser.role };
 
     } catch (err) {
@@ -209,39 +204,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── updatePassword ────────────────────────────────────────────────────────
   const updatePassword = async (newPassword: string): Promise<{ success: boolean; role?: string }> => {
-    const userId  = getPendingUserId();
+    const userId = getPendingUserId();
     const oldPass = getPendingOldPass();
-
     if (!userId) return { success: false };
 
     try {
-      const res = await changePasswordApi({
-        userId,
-        oldPassword:     oldPass,
-        newPassword,
-        confirmPassword: newPassword,
-      });
-
+      const res = await changePasswordApi({ userId, oldPassword: oldPass, newPassword, confirmPassword: newPassword });
       if (!res.success) return { success: false };
 
       let role: string | undefined;
-
       try {
         const userRes = await getUserByIdApi(userId);
         const emp = userRes.employee ?? userRes.user;
         if (userRes.success && emp) {
-          const freshUser: AuthUser = {
-            _id:         emp._id,
-            name:        emp.name        ?? '',
-            email:       emp.email       ?? '',
-            role:        emp.role,
-            empId:       emp.empId,
-            department:  emp.department,
+          const freshUser = normaliseUser({
+            _id: emp._id,
+            name: emp.name ?? '',
+            email: emp.email ?? '',
+            role: emp.role,
+            empId: emp.empId,
+            // ✅ backend uses empId (e.g. "EMP_01"), not empNumber
+            empNumber: emp.empNumber ?? emp.empId ?? '',
+            department: emp.department,
             designation: emp.designation,
-            firstLogin:  false,
-          };
+            firstLogin: false,
+          });
           setUser(freshUser);
           localStorage.setItem(SESSION_KEY, JSON.stringify(freshUser));
           role = freshUser.role;
@@ -252,28 +240,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       clearPendingSession();
       return { success: true, role };
-
     } catch (err) {
       console.error('[AuthContext] updatePassword error:', err);
       return { success: false };
     }
   };
 
-  // ── updateProfile ─────────────────────────────────────────────────────────
   const updateProfile = (updates: Partial<AuthUser>) => {
     if (!user) return;
-    const updated = { ...user, ...updates };
+    const updated = normaliseUser({ ...user, ...updates });
     setUser(updated);
     localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
   };
 
-  // ── logout ────────────────────────────────────────────────────────────────
   const logout = () => {
     setUser(null);
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEYS.authToken);
     clearPendingSession();
-    clearAttendanceSession(); // ✅ wipe attendance keys on logout
+    clearAttendanceSession();
   };
 
   return (
@@ -286,18 +271,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Minimal user fallback ────────────────────────────────────────────────────
-function _buildMinimalUser(id: string, email: string, role: string): AuthUser {
-  return {
-    _id:        id,
-    name:       email.split('@')[0] ?? 'User',
-    email,
-    role:       (role as AuthUser['role']) || 'employee',
-    firstLogin: false,
-  };
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');

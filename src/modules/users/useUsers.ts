@@ -10,7 +10,7 @@ import {
   type EmployeeRecord,
   type CreateEmployeePayload,
   type UpdateEmployeePayload,
-} from '../../service/Empolyee.service';
+} from '../../services/Empolyee.service';
 
 export type { EmployeeRecord };
 

@@ -4,7 +4,7 @@ import {
   startBreakApi,
   endBreakApi,
   logoutAttendanceApi,
-} from "../service/Attendance.service";
+} from "../services/Attendance.service";
 
 export type TimerStatus =
   | 'idle'

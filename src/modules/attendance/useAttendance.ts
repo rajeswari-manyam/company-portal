@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { ATT_KEYS } from "../../service/Attendance.service";
+import { ATT_KEYS } from "../../services/Attendance.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

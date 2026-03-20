@@ -122,7 +122,8 @@ function toForm(payload: Record<string, string>): URLSearchParams {
 export async function loginApi(payload: LoginPayload): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>(
     '/login',
-    toForm(payload as unknown as Record<string, string>)
+    payload, // Send standard JSON payload instead of toForm()
+    { headers: { 'Content-Type': 'application/json' } }
   );
   return data;
 }

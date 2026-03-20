@@ -9,6 +9,8 @@ import MyAnnouncements from './MyAnnouncements';
 import MyHolidays from './MyHolidays';
 import MyDocuments from './MyDocuments';
 import MyProfile from './MyProfile';
+import MyProjects from './MyProjects';
+import MyTasks from './MyTasks';
 // import MyPerformance from './MyPerformance';
 
 export default function EmployeeRouter() {
@@ -16,16 +18,19 @@ export default function EmployeeRouter() {
     <Routes>
       <Route element={<EmployeeLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<EmployeeDashboard />} />
-        <Route path="attendance" element={<MyAttendance />} />
-        <Route path="leaves" element={<MyLeaves />} />
-        <Route path="payslips" element={<MyPayslips />} />
+        <Route path="dashboard"     element={<EmployeeDashboard />} />
+        <Route path="attendance"    element={<MyAttendance />} />
+        <Route path="leaves"        element={<MyLeaves />} />
+        <Route path="payslips"      element={<MyPayslips />} />
         {/* <Route path="performance" element={<MyPerformance />} /> */}
-        <Route path="documents" element={<MyDocuments />} />
+        <Route path="documents"     element={<MyDocuments />} />
         <Route path="announcements" element={<MyAnnouncements />} />
-        <Route path="holidays" element={<MyHolidays />} />
-        <Route path="profile" element={<MyProfile />} />
-        <Route path="*" element={<Navigate to="dashboard" replace />} />
+        <Route path="holidays"      element={<MyHolidays />} />
+        <Route path="profile"       element={<MyProfile />} />
+        {/* ── New routes ── */}
+        <Route path="projects"      element={<MyProjects />} />
+        <Route path="tasks"         element={<MyTasks />} />
+        <Route path="*"             element={<Navigate to="dashboard" replace />} />
       </Route>
     </Routes>
   );

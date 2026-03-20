@@ -5,7 +5,7 @@ import { ADMIN_NAV } from '../../constants';
 
 export default function AdminLayout() {
   return (
-    <Layout navItems={ADMIN_NAV}>
+    <Layout navItems={[...ADMIN_NAV]}>
       <Outlet />
     </Layout>
   );

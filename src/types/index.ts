@@ -56,6 +56,7 @@ export interface LeaveRequest {
   id: string;
   userId: string;
   userName: string;
+  empNumber: string;  // ✅ add this
   department: string;
   leaveType: string;
   startDate: string;

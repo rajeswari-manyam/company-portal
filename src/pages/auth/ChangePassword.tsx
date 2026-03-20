@@ -3,7 +3,7 @@
 import React, { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDashboardPath } from "../../service/Auth.service";
+import { getDashboardPath } from "../../services/Auth.service";
 import toast from 'react-hot-toast';
 
 const PENDING_USER_ID_KEY  = 'pending_userId';

@@ -2,16 +2,29 @@ import apiClient from "./apiClient";
 
 // ✅ CREATE LEAVE
 export const createLeave = async (data: any) => {
-  const payload = {
-    employeeId: data.employeeId,
-    empNumber: data.empNumber,
-    leaveType: data.leaveType,
-    startDate: data.startDate,
-    endDate: data.endDate,
-    reason: data.reason,
+  const payload: Record<string, string> = {
+    employeeId: data.employeeId ?? '',
+    empNumber:  data.empNumber  ?? '',
+    leaveType:  data.leaveType  ?? '',
+    startDate:  data.startDate  ?? '',
+    endDate:    data.endDate    ?? '',
+    reason:     data.reason     ?? '',
   };
 
-  const res = await apiClient.post("/apply", payload);
+  // Log so we can see exactly what's going to the backend
+  console.group('%c[leaveApi] POST /apply', 'color:#6366f1;font-weight:bold');
+  console.log('Payload:', payload);
+  const missing = Object.entries(payload).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length) console.warn('⚠️ Empty fields:', missing);
+  console.groupEnd();
+
+  // Send as form-encoded (backend expects form body on this route)
+  const form = new URLSearchParams();
+  Object.entries(payload).forEach(([k, v]) => { if (v) form.append(k, v); });
+
+  const res = await apiClient.post("/apply", form, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
 
   return {
     id: res.data?.id || res.data?._id || Math.random().toString(),

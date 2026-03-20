@@ -1,72 +1,91 @@
 // src/modules/departments/useDepartments.ts
 
-import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
-import {
-  getDepartments,
-  type DepartmentRecord,
-} from '../../service/Department.service';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import * as DeptService from "../../services/departmentApi";
+import { mapDepartment, mapToDepartmentPayload } from "../../services/departmentApi";
+import type { Department } from '../../data/store';
+
+// ✅ THE FIX: The hook must be exported as `useDepartments` (not `getDepartments`)
+//    All pages import { useDepartments } — this name must match exactly.
 
 export function useDepartments() {
-  const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-  const [search, setSearch]           = useState('');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading,     setLoading]     = useState(false);
+  const [search,      setSearch]      = useState('');
 
-  // ── Fetch all departments from GET /getAllDepartments ──────────────────────
-  const fetchDepartments = useCallback(async () => {
+  const refetch = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const res = await getDepartments();
-      if (res.success) {
-        setDepartments(res.departments);
-        console.group('%c[GET ALL DEPARTMENTS]', 'color:#6366f1;font-weight:bold');
-        console.table(res.departments.map(d => ({
-          _id:            d._id,
-          departmentName: d.departmentName,
-          managerName:    d.managerName,
-          employeeCount:  d.employeeCount,
-        })));
-        console.groupEnd();
-      } else {
-        setError('Failed to load departments');
-        toast.error('Failed to load departments');
-      }
+      const res = await DeptService.getDepartments();
+      setDepartments((res.departments ?? []).map(mapDepartment));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Network error';
-      setError(msg);
-      toast.error(msg);
+      console.error('[useDepartments] refetch error:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchDepartments(); }, [fetchDepartments]);
+  useEffect(() => { refetch(); }, [refetch]);
 
-  // ── Search filter (client-side) ────────────────────────────────────────────
-  const filtered = search
-    ? departments.filter(d =>
-        d.departmentName.toLowerCase().includes(search.toLowerCase()) ||
-        d.managerName.toLowerCase().includes(search.toLowerCase())
-      )
-    : departments;
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q
+      ? departments.filter(d => d.name.toLowerCase().includes(q))
+      : departments;
+  }, [departments, search]);
 
-  // ── getDeptName: resolve MongoDB _id → departmentName ─────────────────────
-  function getDeptName(idOrName?: string): string {
-    if (!idOrName) return '—';
-    const found = departments.find(d => d._id === idOrName);
-    return found ? found.departmentName : idOrName;
-  }
+  // Resolve a department ID → display name
+  const getDeptName = useCallback(
+    (id?: string): string => {
+      if (!id) return '—';
+      return departments.find(d => d.id === id)?.name ?? '—';
+    },
+    [departments]
+  );
+
+  const createDepartment = useCallback(
+    async (data: Omit<Department, 'id'>): Promise<boolean> => {
+      try {
+        await DeptService.createDepartment(mapToDepartmentPayload(data));
+        await refetch();
+        return true;
+      } catch { return false; }
+    },
+    [refetch]
+  );
+
+  const updateDepartment = useCallback(
+    async (id: string, data: Omit<Department, 'id'>): Promise<boolean> => {
+      try {
+        await DeptService.updateDepartment(id, mapToDepartmentPayload(data));
+        await refetch();
+        return true;
+      } catch { return false; }
+    },
+    [refetch]
+  );
+
+  const deleteDepartment = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        await DeptService.deleteDepartment(id);
+        await refetch();
+        return true;
+      } catch { return false; }
+    },
+    [refetch]
+  );
 
   return {
     departments,
     filtered,
     loading,
-    error,
     search,
     setSearch,
-    refetch: fetchDepartments,
+    refetch,
     getDeptName,
+    createDepartment,
+    updateDepartment,
+    deleteDepartment,
   };
 }

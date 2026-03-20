@@ -5,7 +5,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { forgotPasswordApi, resetPasswordApi } from '../../service/Auth.service';
+import { forgotPasswordApi, resetPasswordApi } from "../../services/Auth.service";
 
 /* ── Forgot password steps ── */
 type ForgotStep = 'idle' | 'email' | 'otp' | 'reset';

@@ -8,7 +8,7 @@ export interface Department {
   head: string; // ✅ manager / department head
   createdAt: string;
   employeeCount: number;
-  weekOffDays:string;
+ weekOffDays: string[];   // ← was: string
 }
 
 export interface UserRecord {
@@ -23,7 +23,7 @@ export interface UserRecord {
 }
 
 export interface LeaveRequest {
-  id: string; userId: string; userName: string; department: string;
+  id: string; userId: string; userName: string;empNumber: string; department: string;
   leaveType: string; startDate: string; endDate: string; days: number;
   reason: string; status: 'pending' | 'approved' | 'rejected';
   appliedOn: string; reviewedBy?: string; reviewNote?: string;
@@ -81,9 +81,13 @@ export interface Candidate {
 }
 
 export interface Document {
-  id: string; userId: string; name: string;
+  id: string;
+  userId: string;
+  name: string;
   type: 'offer-letter' | 'resume' | 'certificate' | 'id-proof' | 'other';
-  size: string; uploadedOn: string; url?: string;
+  size: string;
+  uploadedOn: string;
+  fileUrl: string; // ✅ MUST EXIST
 }
 
 interface Store {

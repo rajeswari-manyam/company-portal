@@ -6,7 +6,7 @@ import { useAttendance } from '../../modules/attendance/useAttendance';
 import { StatCard, Card, Badge } from '../../components/ui';
 import { PageHeader } from '../../components/common';
 import axios from 'axios';
-import { ATT_KEYS } from '../../service/Attendance.service';
+import { ATT_KEYS } from "../../services/Attendance.service";
 
 /* ── Types ─────────────────────────────────────────────────── */
 

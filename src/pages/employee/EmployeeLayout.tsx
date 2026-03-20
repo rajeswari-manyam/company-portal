@@ -5,7 +5,7 @@ import { EMPLOYEE_NAV } from '../../constants';
 
 export default function EmployeeLayout() {
   return (
-    <Layout navItems={EMPLOYEE_NAV}>
+    <Layout navItems={[...EMPLOYEE_NAV]}>
       <Outlet />
     </Layout>
   );

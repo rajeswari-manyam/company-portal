@@ -84,7 +84,8 @@ export interface GetEmployeesResponse {
 
 export interface GetEmployeeResponse {
   success: boolean;
-  employee: EmployeeRecord;
+  employee?: EmployeeRecord;
+  user?: EmployeeRecord; // Backend returns "user"
 }
 
 export interface UpdateEmployeeResponse {

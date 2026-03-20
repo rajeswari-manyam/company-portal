@@ -90,6 +90,15 @@ export default function AdminDocuments() {
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${DOC_TYPE_COLOR[doc.type] ?? DOC_TYPE_COLOR.other}`}>
                   {DOC_TYPE_LABEL[doc.type] ?? doc.type}
                 </span>
+                {doc.fileUrl && (
+                  <a
+                    href={doc.fileUrl}
+                    download={doc.name}
+                    className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+                  >
+                    <Download size={15} />
+                  </a>
+                )}
                 <button onClick={() => setDeleting(doc)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors">
                   <Trash2 size={15} />
                 </button>

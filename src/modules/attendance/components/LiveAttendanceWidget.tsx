@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLiveTimer } from "../../../hooks/useLiveTimer";
 import type { TimerStatus } from "../../../hooks/useLiveTimer";
-import { ATT_KEYS } from '../../../service/Attendance.service';
+import { ATT_KEYS } from '../../../services/Attendance.service';
 import toast from 'react-hot-toast';
 
 /* ───────── helpers ───────── */

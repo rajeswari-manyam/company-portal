@@ -11,12 +11,22 @@
   --brand-gradient:  linear-gradient(to right, #0B0E92, #69A6F0);
   --brand-gradient-135: linear-gradient(135deg, #0B0E92, #69A6F0);
   --brand-gradient-b: linear-gradient(to bottom, #0B0E92, #69A6F0);
-  --brand-mid:       #3A6FE4;   /* midpoint used for rings / borders */
+  --brand-mid:       #3A6FE4;
   --brand-text:      #0B0E92;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
+
+/* ✅ FIX: Prevent native document-level scroll.
+   Only <main class="overflow-y-auto"> inside Layout will scroll.
+   Without this, the entire page (including sidebar) scrolls together. */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
 
 body {
   margin: 0;
@@ -81,10 +91,10 @@ body {
 }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-fade-in  { animation: fadeIn 0.3s ease-out; }
 .animate-slide-up { animation: slideUp 0.3s ease-out; }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes zoomIn { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes slideInRight { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fadeIn      { from { opacity: 0; }                          to { opacity: 1; } }
+@keyframes slideUp     { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes zoomIn      { from { transform: scale(.96); opacity: 0; }   to { transform: none; opacity: 1; } }
+@keyframes slideInRight{ from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
