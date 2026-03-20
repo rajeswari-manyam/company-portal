@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Brand gradient CSS variables ─────────────────────────────────────────── */
+:root {
+  --brand-dark:      #0B0E92;
+  --brand-light:     #69A6F0;
+  --brand-gradient:  linear-gradient(to right, #0B0E92, #69A6F0);
+  --brand-gradient-135: linear-gradient(135deg, #0B0E92, #69A6F0);
+  --brand-gradient-b: linear-gradient(to bottom, #0B0E92, #69A6F0);
+  --brand-mid:       #3A6FE4;   /* midpoint used for rings / borders */
+  --brand-text:      #0B0E92;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #b9c1ff; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-mid); }
+
+/* ── Sidebar nav links ────────────────────────────────────────────────────── */
+.sidebar-link {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white;
+}
+.sidebar-link:hover {
+  background: rgba(105, 166, 240, 0.15);
+}
+.sidebar-link.active {
+  background: var(--brand-gradient);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(11, 14, 146, 0.35);
+}
+
+/* ── Brand gradient utility classes ──────────────────────────────────────── */
+.bg-brand-gradient        { background: var(--brand-gradient); }
+.bg-brand-gradient-135    { background: var(--brand-gradient-135); }
+.bg-brand-gradient-b      { background: var(--brand-gradient-b); }
+.text-brand               { color: var(--brand-dark); }
+.border-brand             { border-color: var(--brand-dark); }
+
+/* ── Buttons with brand gradient ─────────────────────────────────────────── */
+.btn-brand {
+  background: var(--brand-gradient);
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  cursor: pointer;
+  transition: opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 12px rgba(11, 14, 146, 0.3);
+}
+.btn-brand:hover  { opacity: 0.92; box-shadow: 0 4px 20px rgba(11, 14, 146, 0.4); }
+.btn-brand:active { opacity: 0.85; }
+
+/* ── Focus ring using brand color ────────────────────────────────────────── */
+.focus-brand:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(105, 166, 240, 0.45);
+}
+
+/* ── Stat card gradient accent ───────────────────────────────────────────── */
+.card-brand-accent {
+  border-top: 3px solid transparent;
+  border-image: var(--brand-gradient) 1;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes zoomIn { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
