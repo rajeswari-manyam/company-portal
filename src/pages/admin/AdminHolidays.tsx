@@ -1,148 +1,267 @@
+
+// import { useEffect, useState } from 'react';
+// import axios from 'axios';
+// import { Plus, Trash2 } from 'lucide-react';
+// import { Modal, Input, ConfirmDialog, EmptyState, Card } from '../../components/ui';
+// import { PageHeader } from '../../components/common';
+// import Button from '../../components/ui/Button';
+// import toast from 'react-hot-toast';
+
+// // ✅ API BASE URL
+// const BASE_URL = "http://192.168.1.5:3000";
+
+// interface Holiday {
+//   id: string;
+//   name: string;
+//   date: string;
+// }
+
+// export default function AdminHolidays() {
+//   const [holidays, setHolidays] = useState<Holiday[]>([]);
+//   const [showForm, setShowForm] = useState(false);
+//   const [deleting, setDeleting] = useState<Holiday | null>(null);
+
+//   const [form, setForm] = useState({
+//     name: '',
+//     date: '',
+//   });
+
+//   // ✅ GET API
+//   const fetchHolidays = async () => {
+//     try {
+//       const res = await axios.get(`${BASE_URL}/getHolidays`);
+
+//       console.log("API Response:", res.data);
+
+//       const list = res.data.holidays || [];
+
+//       const mapped = list.map((h: any) => ({
+//         id: h.id || h._id || Math.random().toString(),
+//         name: h.holidayName, // ✅ correct mapping
+//         date: h.date,
+//       }));
+
+//       setHolidays(mapped);
+//     } catch (err) {
+//       console.error(err);
+//       toast.error("Failed to fetch holidays");
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchHolidays();
+//   }, []);
+
+//   // ✅ CREATE API
+//   const handleCreate = async () => {
+//   if (!form.name || !form.date) {
+//     toast.error("Name and Date required");
+//     return;
+//   }
+
+//   try {
+//     const payload = {
+//       holidays: [
+//         {
+//           holidayName: form.name,
+//           date: form.date,
+//         }
+//       ]
+//     };
+
+//     console.log("Sending Payload:", payload); // 🔍 debug
+
+//     const res = await axios.post(
+//       "http://192.168.1.5:3000/createholidays",
+//       payload
+//     );
+
+//     console.log("SUCCESS:", res.data);
+
+//     // ✅ update UI
+//     const newHoliday = {
+//       id: res.data?.id || Math.random().toString(),
+//       name: form.name,
+//       date: form.date,
+//     };
+
+//     setHolidays(prev => [...prev, newHoliday]);
+
+//     toast.success("Holiday added!");
+//     setShowForm(false);
+//     setForm({ name: '', date: '' });
+
+//   } catch (err: any) {
+//     console.error("ERROR:", err.response?.data || err.message);
+//     toast.error("Create failed");
+//   }
+// };
+
+//   // ✅ DELETE API
+//   const handleDelete = async () => {
+//     if (!deleting) return;
+
+//     try {
+//       await axios.delete(`${BASE_URL}/deleteholidays/${deleting.id}`);
+
+//       setHolidays(prev => prev.filter(h => h.id !== deleting.id));
+
+//       toast.success("Deleted successfully");
+//       setDeleting(null);
+
+//     } catch (err) {
+//       console.error(err);
+//       toast.error("Delete failed");
+//     }
+//   };
+
+//   return (
+//     <div className="space-y-6">
+//       {/* HEADER */}
+//       <PageHeader
+//         title="Holiday Calendar"
+//         subtitle="Manage holidays"
+//         action={
+//           <Button icon={<Plus size={16} />} onClick={() => setShowForm(true)}>
+//             Add Holiday
+//           </Button>
+//         }
+//       />
+
+//       {/* LIST */}
+//       <Card padding={false}>
+//         {holidays.length === 0 && (
+//           <EmptyState icon="🎉" message="No holidays found" />
+//         )}
+
+//         {holidays.map(h => (
+//           <div key={h.id} className="flex justify-between items-center p-4 border-b">
+//             <div>
+//               <p className="font-semibold">{h.name}</p>
+//               <p className="text-sm text-gray-500">{h.date}</p>
+//             </div>
+
+//             <button
+//               onClick={() => setDeleting(h)}
+//               className="text-red-500"
+//             >
+//               <Trash2 size={16} />
+//             </button>
+//           </div>
+//         ))}
+//       </Card>
+
+//       {/* CREATE MODAL */}
+//       {showForm && (
+//         <Modal title="Add Holiday" onClose={() => setShowForm(false)}>
+//           <div className="space-y-4">
+//             <Input
+//               label="Holiday Name"
+//               value={form.name}
+//               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+//             />
+
+//             <Input
+//               type="date"
+//               label="Date"
+//               value={form.date}
+//               onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+//             />
+
+//             <div className="flex justify-end gap-2">
+//               <Button onClick={() => setShowForm(false)}>Cancel</Button>
+//               <Button onClick={handleCreate}>Create</Button>
+//             </div>
+//           </div>
+//         </Modal>
+//       )}
+
+//       {/* DELETE CONFIRM */}
+//       {deleting && (
+//         <ConfirmDialog
+//           message={`Delete ${deleting.name}?`}
+//           onConfirm={handleDelete}
+//           onCancel={() => setDeleting(null)}
+//         />
+//       )}
+//     </div>
+//   );
+// }
+
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { getHolidays, createHoliday, deleteHoliday, type Holiday } from '../../data/store';
-import { Modal, Input, Select, Badge, ConfirmDialog, EmptyState, Card } from '../../components/ui';
+import { useHolidays } from '../../modules/holidays/useHolidays';
+import { Modal, Input, ConfirmDialog, EmptyState, Card } from '../../components/ui';
 import { PageHeader } from '../../components/common';
 import Button from '../../components/ui/Button';
-import { formatDate } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
-const TYPE_COLOR: Record<string, string> = {
-  national: 'bg-indigo-100 text-indigo-700',
-  regional: 'bg-blue-100 text-blue-700',
-  company: 'bg-emerald-100 text-emerald-700',
-};
-
 export default function AdminHolidays() {
-  const [holidays, setHolidays] = useState<Holiday[]>(() => getHolidays());
+  const { holidays, createHoliday, deleteHoliday } = useHolidays();
+
   const [showForm, setShowForm] = useState(false);
-  const [deleting, setDeleting] = useState<Holiday | null>(null);
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [form, setForm] = useState({ name: '', date: '', type: 'national' as Holiday['type'], description: '' });
+  const [deleting, setDeleting] = useState<any>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const refresh = () => setHolidays(getHolidays());
+  const [form, setForm] = useState({
+    name: '',
+    date: '',
+  });
 
-  const filtered = holidays.filter(h => typeFilter === 'all' || h.type === typeFilter);
-  const upcoming = filtered.filter(h => h.date >= today);
-  const past = [...filtered.filter(h => h.date < today)].reverse();
+  const handleCreate = async () => {
+    if (!form.name || !form.date) {
+      toast.error("Name and Date required");
+      return;
+    }
 
-  const handleCreate = () => {
-    if (!form.name || !form.date) { toast.error('Name and date required'); return; }
-    createHoliday(form);
-    toast.success('Holiday added!');
-    refresh();
-    setShowForm(false);
-    setForm({ name: '', date: '', type: 'national', description: '' });
+    const ok = await createHoliday(form);
+
+    if (ok) {
+      toast.success("Holiday added!");
+      setShowForm(false);
+      setForm({ name: '', date: '' });
+    }
   };
-
-  const handleDelete = () => {
-    if (!deleting) return;
-    deleteHoliday(deleting.id);
-    toast.success('Holiday removed');
-    refresh();
-    setDeleting(null);
-  };
-
-  const HolidayRow = ({ h }: { h: Holiday }) => {
-    const d = new Date(h.date);
-    const isPast = h.date < today;
-    return (
-      <div className={`flex items-center gap-4 px-5 py-3.5 ${isPast ? 'opacity-50' : ''}`}>
-        <div className="w-12 h-12 rounded-xl bg-indigo-50 flex flex-col items-center justify-center flex-shrink-0">
-          <p className="text-xs text-indigo-400 font-bold leading-none">{d.toLocaleString('en', { month: 'short' })}</p>
-          <p className="text-xl font-black text-indigo-700 leading-tight">{d.getDate()}</p>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold text-slate-800 text-sm">{h.name}</p>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${TYPE_COLOR[h.type]}`}>{h.type}</span>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">{d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          {h.description && <p className="text-xs text-slate-500 mt-0.5">{h.description}</p>}
-        </div>
-        <button onClick={() => setDeleting(h)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors">
-          <Trash2 size={15} />
-        </button>
-      </div>
-    );
-  };
-
-  const typeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'national', label: 'National' },
-    { value: 'regional', label: 'Regional' },
-    { value: 'company', label: 'Company' },
-  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Holiday Calendar"
-        subtitle="Manage company holiday schedule"
-        action={<Button icon={<Plus size={16} />} onClick={() => setShowForm(true)}>Add Holiday</Button>}
+        subtitle="Manage holidays"
+        action={
+          <Button icon={<Plus size={16} />} onClick={() => setShowForm(true)}>
+            Add Holiday
+          </Button>
+        }
       />
 
-      <div className="flex flex-wrap gap-3 items-center">
-        {typeOptions.map(t => (
-          <button
-            key={t.value}
-            onClick={() => setTypeFilter(t.value)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${typeFilter === t.value ? 'bg-[#0B0E92] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {(['national', 'regional', 'company'] as Holiday['type'][]).map(type => (
-          <Card key={type} className="text-center">
-            <p className={`text-3xl font-black ${TYPE_COLOR[type].split(' ')[1]}`}>{holidays.filter(h => h.type === type).length}</p>
-            <p className="text-sm text-slate-500 mt-1 capitalize font-medium">{type}</p>
-          </Card>
-        ))}
-      </div>
-
       <Card padding={false}>
-        {upcoming.length > 0 && (
-          <>
-            <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upcoming ({upcoming.length})</p>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {upcoming.map(h => <HolidayRow key={h.id} h={h} />)}
-            </div>
-          </>
+        {holidays.length === 0 && (
+          <EmptyState icon="🎉" message="No holidays found" />
         )}
-        {past.length > 0 && (
-          <>
-            <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Past ({past.length})</p>
+
+        {holidays.map(h => (
+          <div key={h.id} className="flex justify-between p-4 border-b">
+            <div>
+              <p className="font-semibold">{h.name}</p>
+              <p className="text-sm text-gray-500">{h.date}</p>
             </div>
-            <div className="divide-y divide-slate-50">
-              {past.map(h => <HolidayRow key={h.id} h={h} />)}
-            </div>
-          </>
-        )}
-        {filtered.length === 0 && <EmptyState icon="🎉" message="No holidays found" />}
+
+            <button onClick={() => setDeleting(h)} className="text-red-500">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
       </Card>
 
       {showForm && (
         <Modal title="Add Holiday" onClose={() => setShowForm(false)}>
           <div className="space-y-4">
-            <Input label="Holiday Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Diwali" />
-            <Input label="Date" type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} required />
-            <Select
-              label="Type"
-              value={form.type}
-              onChange={e => setForm(p => ({ ...p, type: e.target.value as Holiday['type'] }))}
-              options={[{ value: 'national', label: 'National' }, { value: 'regional', label: 'Regional' }, { value: 'company', label: 'Company' }]}
-            />
-            <Input label="Description (optional)" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description" />
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleCreate}>Add Holiday</Button>
+            <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+            <Input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button onClick={handleCreate}>Create</Button>
             </div>
           </div>
         </Modal>
@@ -150,8 +269,11 @@ export default function AdminHolidays() {
 
       {deleting && (
         <ConfirmDialog
-          message={`Remove "${deleting.name}" from the holiday calendar?`}
-          onConfirm={handleDelete}
+          message={`Delete ${deleting.name}?`}
+          onConfirm={async () => {
+            await deleteHoliday(deleting.id);
+            setDeleting(null);
+          }}
           onCancel={() => setDeleting(null)}
         />
       )}

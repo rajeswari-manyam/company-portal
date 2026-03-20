@@ -8,6 +8,7 @@ export interface Department {
   head: string; // ✅ manager / department head
   createdAt: string;
   employeeCount: number;
+  weekOffDays:string;
 }
 
 export interface UserRecord {

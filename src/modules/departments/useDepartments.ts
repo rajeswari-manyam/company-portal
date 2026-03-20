@@ -1,38 +1,60 @@
-import { useState, useCallback } from 'react';
-import { DepartmentService } from './DepartmentService';
-import type { Department } from '../../data/store';
-import toast from 'react-hot-toast';
+import { useEffect, useState } from "react";
+import {
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+} from "../../services/departmentApi";
 
-export function useDepartments() {
-  const [departments, setDepartments] = useState<Department[]>(() => DepartmentService.getAll());
-  const [search, setSearch] = useState('');
+export const useDepartments = () => {
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
-  const refresh = useCallback(() => setDepartments(DepartmentService.getAll()), []);
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const data = await getDepartments();
+      setDepartments(data);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filtered = search
-    ? DepartmentService.search(departments, search)
-    : departments;
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
-  const createDepartment = async (data: Omit<Department, 'id'>) => {
-    DepartmentService.create(data);
-    refresh();
-    toast.success('Department created');
+  const handleCreate = async (data: any) => {
+    const newDept = await createDepartment(data);
+    setDepartments(prev => [...prev, newDept]);
     return true;
   };
 
-  const updateDepartment = async (id: string, data: Partial<Department>) => {
-    const ok = DepartmentService.update(id, data);
-    if (ok) { refresh(); toast.success('Department updated'); }
-    else toast.error('Update failed');
-    return ok;
+  const handleUpdate = async (id: string, data: any) => {
+    await updateDepartment(id, data);
+    setDepartments(prev =>
+      prev.map(d => (d.id === id ? { ...d, ...data } : d))
+    );
+    return true;
   };
 
-  const deleteDepartment = async (id: string) => {
-    const ok = DepartmentService.delete(id);
-    if (ok) { refresh(); toast.success('Department deleted'); }
-    else toast.error('Cannot delete this department');
-    return ok;
+  const handleDelete = async (id: string) => {
+    await deleteDepartment(id);
+    setDepartments(prev => prev.filter(d => d.id !== id));
   };
 
-  return { departments, filtered, search, setSearch, createDepartment, updateDepartment, deleteDepartment, refresh };
-}
+  const filtered = departments.filter(d =>
+    d.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return {
+    filtered,
+    loading,
+    search,
+    setSearch,
+    createDepartment: handleCreate,
+    updateDepartment: handleUpdate,
+    deleteDepartment: handleDelete,
+  };
+};

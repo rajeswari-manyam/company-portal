@@ -30,7 +30,9 @@ export default function DepartmentTable({ departments, onEdit, onDelete, canEdit
     },
     { key: 'head', header: 'Department Head' },
     { key: 'description', header: 'Description' },
-    { key: 'createdAt', header: 'Created', render: (d) => formatDate(d.createdAt) },
+    
+    {key:'employeeCount',header:'employeeCount',render:(d)=>(<p>{d.employeeCount}</p>)},
+    {key:'weekOffDays',header:'weekOffDays',render:(d)=>(<p>{d.weekOffDays}</p>)},
     {
       key: 'actions',
       header: 'Actions',
