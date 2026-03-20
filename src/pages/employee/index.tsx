@@ -9,7 +9,7 @@ import MyAnnouncements from './MyAnnouncements';
 import MyHolidays from './MyHolidays';
 import MyDocuments from './MyDocuments';
 import MyProfile from './MyProfile';
-import MyPerformance from './MyPerformance';
+// import MyPerformance from './MyPerformance';
 
 export default function EmployeeRouter() {
   return (
@@ -20,7 +20,7 @@ export default function EmployeeRouter() {
         <Route path="attendance" element={<MyAttendance />} />
         <Route path="leaves" element={<MyLeaves />} />
         <Route path="payslips" element={<MyPayslips />} />
-        <Route path="performance" element={<MyPerformance />} />
+        {/* <Route path="performance" element={<MyPerformance />} /> */}
         <Route path="documents" element={<MyDocuments />} />
         <Route path="announcements" element={<MyAnnouncements />} />
         <Route path="holidays" element={<MyHolidays />} />

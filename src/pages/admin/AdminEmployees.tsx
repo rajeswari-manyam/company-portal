@@ -1,76 +1,155 @@
-import { useState } from 'react';
+// src/pages/admin/AdminEmployees.tsx
+
+import { useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { useUsers } from '../../modules/users/useUsers';
+import { useDepartments } from '../../modules/departments/useDepartments';
 import UserTable from '../../modules/users/components/UserTable';
 import UserForm from '../../modules/users/components/UserForm';
-import { Modal, SearchInput, Select, ConfirmDialog, Card } from '../../components/ui';
-import { PageHeader } from '../../components/common';
-import Button from '../../components/ui/Button';
-import type { UserRecord } from '../../types';
+import { Modal, ConfirmDialog } from '../../components/ui';
+import type { EmployeeRecord } from '../../service/Empolyee.service';
 
 export default function AdminEmployees() {
-  const { filtered, search, setSearch, roleFilter, setRoleFilter, loading, createUser, updateUser, deleteUser } = useUsers();
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<UserRecord | null>(null);
-  const [deleting, setDeleting] = useState<UserRecord | null>(null);
+  const {
+    users, loading, error,
+    deleteUser, refetch,
+    search, setSearch,
+  } = useUsers();
 
-  const handleCreate = async (data: Omit<UserRecord, 'id'>) => {
-    const ok = await createUser(data);
-    if (ok) setShowForm(false);
-    return ok;
+  // Departments for filter dropdown — name shown, _id used for matching
+  const { departments, getDeptName } = useDepartments();
+
+  const [showForm,     setShowForm]     = useState(false);
+  const [editing,      setEditing]      = useState<EmployeeRecord | null>(null);
+  const [deleting,     setDeleting]     = useState<EmployeeRecord | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending'>('All');
+  const [deptFilter,   setDeptFilter]   = useState('All');  // stores dept _id or 'All'
+
+  // ── Filter employees ───────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return users.filter(u => {
+      const matchSearch = !q ||
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.empId ?? '').toLowerCase().includes(q) ||
+        (u.designation ?? '').toLowerCase().includes(q);
+      const matchStatus =
+        statusFilter === 'All'    ? true :
+        statusFilter === 'Active' ? !u.firstLogin :
+        u.firstLogin;
+      const matchDept = deptFilter === 'All' || u.department === deptFilter;
+      return matchSearch && matchStatus && matchDept;
+    });
+  }, [users, search, statusFilter, deptFilter]);
+
+  const handleClose = () => { setShowForm(false); setEditing(null); };
+  const handleSuccess = (employee: EmployeeRecord) => {
+    console.group('%c[AdminEmployees] Saved', 'color:#10b981;font-weight:bold');
+    console.log(employee);
+    console.groupEnd();
+    refetch();
+    handleClose();
   };
-
-  const handleUpdate = async (data: Omit<UserRecord, 'id'>) => {
-    if (!editing) return false;
-    const ok = await updateUser(editing.id, data);
-    if (ok) setEditing(null);
-    return ok;
-  };
-
-  const handleDelete = async () => {
-    if (!deleting) return;
-    await deleteUser(deleting.id);
-    setDeleting(null);
-  };
-
-  const roleOptions = [
-    { value: 'all', label: 'All Roles' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'hr', label: 'HR' },
-    { value: 'employee', label: 'Employee' },
-  ];
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Employee Management"
-        subtitle="Manage all users and their roles"
-        action={
-          <Button icon={<Plus size={16} />} onClick={() => setShowForm(true)}>Add Employee</Button>
-        }
-      />
 
-      <Card padding={false}>
-        <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search by name, email, ID…" className="flex-1 min-w-[200px]" />
-          <Select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} options={roleOptions} className="w-40" />
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Employee Management</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Manage all users and their roles</p>
+      </div>
+
+      {error && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+        {/* Card Header */}
+        <div className="px-6 py-5 border-b border-slate-100">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Employees</h2>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {filtered.length} of {users.length} employees
+              </p>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold shadow-sm transition-colors"
+            >
+              <Plus size={16} />
+              Add Employee
+            </button>
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-3 mt-4 flex-wrap">
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search employees..."
+                className="w-full pl-9 pr-4 h-10 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Status pills */}
+            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              {(['All', 'Active', 'Pending'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    statusFilter === s
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Department dropdown — shows department NAME, filters by _id */}
+            <select
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+              className="h-10 px-3 pr-8 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+            >
+              <option value="All">All</option>
+              {departments.map(d => (
+                <option key={d._id} value={d._id}>
+                  {d.departmentName}   {/* ← name shown, _id is value */}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <UserTable
           users={filtered}
           onEdit={setEditing}
           onDelete={setDeleting}
           canEdit
           canDelete
+          loading={loading}
         />
-      </Card>
+      </div>
 
       {(showForm || editing) && (
-        <Modal title={editing ? 'Edit User' : 'Add Employee'} onClose={() => { setShowForm(false); setEditing(null); }} size="lg">
+        <Modal title={editing ? 'Edit Employee' : 'Add Employee'} onClose={handleClose} size="lg">
           <UserForm
             initial={editing ?? undefined}
-            onSubmit={editing ? handleUpdate : handleCreate}
-            onCancel={() => { setShowForm(false); setEditing(null); }}
-            loading={loading}
+            onSuccess={handleSuccess}
+            onCancel={handleClose}
           />
         </Modal>
       )}
@@ -78,7 +157,7 @@ export default function AdminEmployees() {
       {deleting && (
         <ConfirmDialog
           message={`Are you sure you want to delete ${deleting.name}? This action cannot be undone.`}
-          onConfirm={handleDelete}
+          onConfirm={async () => { await deleteUser(deleting._id); setDeleting(null); }}
           onCancel={() => setDeleting(null)}
         />
       )}

@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -11,6 +13,10 @@ import AdminRouter from './pages/admin/index';
 import HRRouter from './pages/hr/index';
 import EmployeeRouter from './pages/employee/index';
 
+// ── Session key (must match AuthContext / Auth.service) ────────────────────────
+const PENDING_USER_ID_KEY = 'pending_userId';
+
+// ── Spinner ────────────────────────────────────────────────────────────────────
 function Spinner() {
   return (
     <div className="flex items-center justify-center h-screen bg-[#f0f2f7]">
@@ -22,7 +28,8 @@ function Spinner() {
   );
 }
 
-/** Guards a route: must be logged in, NOT mid-password-change, and correct role */
+// ── ProtectedRoute ─────────────────────────────────────────────────────────────
+/** Guards a route: must be fully logged in with the correct role */
 function ProtectedRoute({
   children,
   requiredRole,
@@ -35,15 +42,13 @@ function ProtectedRoute({
   if (isLoading) return <Spinner />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  // Force first-time password change for HR and Employee
-  if (user?.mustChangePassword) return <Navigate to="/change-password" replace />;
-
   const getDashboard = (role?: string) => {
     if (role === 'admin') return '/admin/dashboard';
-    if (role === 'hr') return '/hr/dashboard';
+    if (role === 'hr')    return '/hr/dashboard';
     return '/employee/dashboard';
   };
 
+  // Wrong role → redirect to their own dashboard
   if (requiredRole && user?.role !== requiredRole) {
     return <Navigate to={getDashboard(user?.role)} replace />;
   }
@@ -51,51 +56,76 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
+// ── TrackedRoute ───────────────────────────────────────────────────────────────
+/** Wraps HR / Employee routes with time-tracking and task context */
 function TrackedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return (
-    <TimeTrackingProvider userId={user?.id}>
+    <TimeTrackingProvider userId={user?._id}>   {/* ✅ _id not id */}
       <TaskProvider>{children}</TaskProvider>
     </TimeTrackingProvider>
   );
 }
 
+// ── AppRoutes ──────────────────────────────────────────────────────────────────
 function AppRoutes() {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return <Spinner />;
 
-  const home = () => {
-    if (!isAuthenticated) return '/login';
-    if (user?.mustChangePassword) return '/change-password';
-    if (user?.role === 'admin') return '/admin/dashboard';
-    if (user?.role === 'hr') return '/hr/dashboard';
+  /**
+   * ✅ isPendingPasswordChange:
+   * During first-login flow, AuthContext does NOT set `user` in state.
+   * It only stores `pending_userId` in sessionStorage.
+   * So we must check sessionStorage — not `user` — to know if we're mid-flow.
+   */
+ // With this (checks both):
+const isPendingPasswordChange =
+  !!sessionStorage.getItem(PENDING_USER_ID_KEY) ||
+  !!localStorage.getItem('fl_pending_userId');
+
+  /** Resolve the correct home path for the current auth state */
+  const home = (): string => {
+    if (isPendingPasswordChange)  return '/change-password';
+    if (!isAuthenticated)         return '/login';
+    if (user?.role === 'admin')   return '/admin/dashboard';
+    if (user?.role === 'hr')      return '/hr/dashboard';
     return '/employee/dashboard';
   };
 
   return (
     <Routes>
-      {/* Public — login page: redirect away if already logged in (and password is set) */}
+
+      {/* ── /login ──────────────────────────────────────────────────────────── */}
+      {/*  • Already logged in           → go to their dashboard                */}
+      {/*  • Mid-password-change flow    → go to /change-password               */}
+      {/*  • Otherwise                   → show login form                      */}
       <Route
         path="/login"
         element={
-          isAuthenticated && !user?.mustChangePassword
+          isAuthenticated
             ? <Navigate to={home()} replace />
-            : <Login />
+            : isPendingPasswordChange
+              ? <Navigate to="/change-password" replace />
+              : <Login />
         }
       />
 
-      {/* First-time password change — requires authentication */}
+      {/* ── /change-password ────────────────────────────────────────────────── */}
+      {/*  ✅ Allow access if:                                                   */}
+      {/*     (a) pending_userId in sessionStorage  → first-login flow           */}
+      {/*     (b) fully authenticated               → profile password change    */}
+      {/*  ❌ Otherwise → back to /login                                         */}
       <Route
         path="/change-password"
         element={
-          !isAuthenticated
-            ? <Navigate to="/login" replace />
-            : <ChangePassword />
+          isAuthenticated || isPendingPasswordChange
+            ? <ChangePassword />
+            : <Navigate to="/login" replace />
         }
       />
 
-      {/* Admin — full access, no time tracking */}
+      {/* ── /admin/* ─────────────────────────────────────────────────────────── */}
       <Route
         path="/admin/*"
         element={
@@ -105,7 +135,7 @@ function AppRoutes() {
         }
       />
 
-      {/* HR — with time + task tracking */}
+      {/* ── /hr/* ────────────────────────────────────────────────────────────── */}
       <Route
         path="/hr/*"
         element={
@@ -117,7 +147,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Employee — with time + task tracking */}
+      {/* ── /employee/* ──────────────────────────────────────────────────────── */}
       <Route
         path="/employee/*"
         element={
@@ -129,13 +159,15 @@ function AppRoutes() {
         }
       />
 
-      {/* Catch-all → home */}
-      <Route path="/" element={<Navigate to={home()} replace />} />
-      <Route path="*" element={<Navigate to={home()} replace />} />
+      {/* ── Catch-all ────────────────────────────────────────────────────────── */}
+      <Route path="/"  element={<Navigate to={home()} replace />} />
+      <Route path="*"  element={<Navigate to={home()} replace />} />
+
     </Routes>
   );
 }
 
+// ── App ────────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <AuthProvider>

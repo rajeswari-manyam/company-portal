@@ -10,7 +10,7 @@ import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import AdminHolidays from './AdminHolidays';
 import AdminDocuments from './AdminDocuments';
-import AdminReports from './AdminReports';
+
 
 export default function AdminRouter() {
   return (
@@ -26,7 +26,7 @@ export default function AdminRouter() {
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="holidays" element={<AdminHolidays />} />
         <Route path="documents" element={<AdminDocuments />} />
-        <Route path="reports" element={<AdminReports />} />
+    
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Route>
     </Routes>

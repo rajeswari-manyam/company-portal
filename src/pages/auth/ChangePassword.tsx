@@ -1,36 +1,74 @@
+// src/pages/auth/ChangePassword.tsx
+
 import React, { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getDashboardPath } from "../../service/Auth.service";
 import toast from 'react-hot-toast';
 
-export default function ChangePassword() {
-  const { updatePassword, user } = useAuth();
-  const navigate = useNavigate();
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+const PENDING_USER_ID_KEY  = 'pending_userId';
+const PENDING_OLD_PASS_KEY = 'pending_oldPass';
+const PENDING_EMAIL_KEY    = 'pending_email';
 
-  // Determine where to go after password change
-  const getDashboard = () => {
-    if (user?.role === 'admin') return '/admin/dashboard';
-    if (user?.role === 'hr') return '/hr/dashboard';
-    return '/employee/dashboard';
+export default function ChangePassword() {
+  const { updatePassword } = useAuth();
+  const navigate = useNavigate();
+
+  const [password,    setPassword]    = useState('');
+  const [confirm,     setConfirm]     = useState('');
+  const [showPw,      setShowPw]      = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+
+  // ── Back to login ──────────────────────────────────────────────────────────
+  const handleBack = () => {
+    sessionStorage.removeItem(PENDING_USER_ID_KEY);
+    sessionStorage.removeItem(PENDING_OLD_PASS_KEY);
+    sessionStorage.removeItem(PENDING_EMAIL_KEY);
+    localStorage.removeItem('fl_pending_userId');
+    localStorage.removeItem('fl_pending_oldPass');
+    localStorage.removeItem('fl_pending_email');
+    // ✅ Hard redirect so App.tsx re-reads storage fresh
+    window.location.href = '/login';
   };
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
     if (password.length < 8) { toast.error('Minimum 8 characters'); return; }
     if (password !== confirm) { toast.error('Passwords do not match'); return; }
+
     setLoading(true);
-    const ok = await updatePassword(password);
-    if (ok) {
-      toast.success('Password updated! Taking you to your dashboard…');
-      // Short delay so the user sees the success toast, then redirect to dashboard
-      setTimeout(() => navigate(getDashboard(), { replace: true }), 1200);
-    } else {
-      toast.error('Failed to update password');
+    try {
+      const result = await updatePassword(password);
+
+      if (!result.success) {
+        toast.error('Failed to update password. Please try again.');
+        return;
+      }
+
+      toast.success('Password updated! Redirecting…');
+
+      const role = result.role ?? 'employee';
+      const path = getDashboardPath(role);
+
+      console.log('%c[ChangePassword] Redirecting to:', 'color:#6366f1;font-weight:bold', path);
+
+      // ✅ Use window.location.href — not navigate()
+      // After updatePassword(), AuthContext calls setUser() which is async.
+      // navigate() fires before React re-renders with the new user,
+      // so ProtectedRoute sees isAuthenticated=false and bounces to /login.
+      // window.location.href forces a full reload — App mounts fresh,
+      // reads the saved user from localStorage, and ProtectedRoute passes.
+      setTimeout(() => {
+        window.location.href = path;
+      }, 1000);
+
+    } catch (err) {
+      console.error('[ChangePassword]', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -38,7 +76,7 @@ export default function ChangePassword() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row font-sans">
 
-      {/* ── LEFT PANEL — Manyam brand ────────────────────────── */}
+      {/* ── LEFT PANEL ─────────────────────────────────────────── */}
       <div
         className="md:w-2/3 flex flex-col justify-center items-center relative bg-cover bg-center min-h-[280px]"
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=900&auto=format&fit=crop&q=60')" }}
@@ -104,33 +142,43 @@ export default function ChangePassword() {
       </div>
 
       {/* ── RIGHT PANEL ────────────────────────────────────────── */}
-      <div className="md:w-1/3 flex items-center justify-center bg-[#f0f2f7] px-8 py-16">
+      <div className="md:w-1/3 flex items-center justify-center bg-[#f0f2f7] px-8 py-16 relative">
+
+        {/* ── BACK BUTTON ── */}
+        <button
+          type="button"
+          onClick={handleBack}
+          className="absolute top-6 left-6 flex items-center gap-2 text-[#1a2a5e] opacity-60 hover:opacity-100 transition-all duration-200 group"
+          title="Back to Login"
+        >
+          <span className="flex items-center justify-center w-8 h-8 rounded-full border border-[#1a2a5e] border-opacity-30 group-hover:border-opacity-100 group-hover:bg-[#1a2a5e] group-hover:text-white transition-all duration-200">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-4 h-4"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </span>
+          <span className="text-xs font-semibold tracking-wider uppercase">Back</span>
+        </button>
+
         <div className="w-full max-w-sm">
 
-          {/* Header */}
           <div className="text-center mb-8">
             <h2 className="text-lg font-bold text-[#1a2a5e] tracking-widest">SET NEW PASSWORD</h2>
             <p className="text-xs text-gray-400 mt-2">
-              Welcome,{' '}
-              <span className="font-semibold text-[#1a2a5e]">{user?.name?.split(' ')[0]}</span>.
-              <br />Please set your own password to continue.
+              Please set your own password to continue.
             </p>
           </div>
 
-          {/* Role badge */}
-          <div className="flex justify-center mb-6">
-            <span className="px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
-              style={{
-                background: user?.role === 'hr' ? 'rgba(139,92,246,0.1)' : 'rgba(59,130,246,0.1)',
-                color: user?.role === 'hr' ? '#7c3aed' : '#1d4ed8',
-                border: `1px solid ${user?.role === 'hr' ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)'}`,
-              }}
-            >
-              {user?.role === 'hr' ? '🧑‍💼 HR Manager' : '👤 Employee'} · {user?.department}
-            </span>
-          </div>
-
           <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+
             {/* New password */}
             <div className="flex flex-col gap-1 relative">
               <label className="text-sm text-gray-500">New Password</label>
@@ -139,6 +187,7 @@ export default function ChangePassword() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Min. 8 characters"
+                autoComplete="new-password"
                 className="bg-transparent border-b border-[#b0b8cc] focus:border-[#1a2a5e] outline-none py-1.5 pr-16 text-sm text-[#1a2a5e] transition-colors duration-200"
                 required
                 autoFocus
@@ -160,6 +209,7 @@ export default function ChangePassword() {
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
                 placeholder="Repeat new password"
+                autoComplete="new-password"
                 className="bg-transparent border-b border-[#b0b8cc] focus:border-[#1a2a5e] outline-none py-1.5 pr-16 text-sm text-[#1a2a5e] transition-colors duration-200"
                 required
               />
@@ -175,7 +225,6 @@ export default function ChangePassword() {
               )}
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading || password.length < 8 || password !== confirm}
@@ -186,9 +235,9 @@ export default function ChangePassword() {
             </button>
           </form>
 
-          {/* Info note */}
           <p className="mt-6 text-center text-[11px] text-gray-400">
-            This is a one-time setup. You can change your password anytime from <span className="font-semibold">My Profile → Update Password</span>.
+            This is a one-time setup. You can change your password anytime from{' '}
+            <span className="font-semibold">My Profile → Update Password</span>.
           </p>
         </div>
       </div>

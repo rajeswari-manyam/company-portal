@@ -41,11 +41,11 @@ export const ADMIN_NAV = [
   { to: '/admin/attendance', label: 'Attendance', icon: '📅' },
   { to: '/admin/leaves', label: 'Leave Requests', icon: '🌴' },
   { to: '/admin/payslips', label: 'Payroll', icon: '💰' },
-  { to: '/admin/performance', label: 'Performance', icon: '📈' },
+
   { to: '/admin/announcements', label: 'Announcements', icon: '📢' },
   { to: '/admin/holidays', label: 'Holidays', icon: '🎉' },
   { to: '/admin/documents', label: 'Documents', icon: '📄' },
-  { to: '/admin/reports', label: 'Reports', icon: '📊' },
+
 ];
 
 export const HR_NAV = [
@@ -55,7 +55,7 @@ export const HR_NAV = [
   { to: '/hr/attendance', label: 'Attendance', icon: '📅' },
   { to: '/hr/leaves', label: 'Leave Requests', icon: '🌴' },
   { to: '/hr/payroll', label: 'Payroll', icon: '💰' },
-  { to: '/hr/performance', label: 'Performance', icon: '📈' },
+
   { to: '/hr/announcements', label: 'Announcements', icon: '📢' },
   { to: '/hr/holidays', label: 'Holidays', icon: '🎉' },
   { to: '/hr/documents', label: 'Documents', icon: '📄' },
@@ -67,7 +67,7 @@ export const EMPLOYEE_NAV = [
   { to: '/employee/attendance', label: 'My Attendance', icon: '📅' },
   { to: '/employee/leaves', label: 'My Leave', icon: '🌴' },
   { to: '/employee/payslips', label: 'My Payslips', icon: '💰' },
-  { to: '/employee/performance', label: 'My Performance', icon: '📈' },
+
   { to: '/employee/documents', label: 'My Documents', icon: '📄' },
   { to: '/employee/announcements', label: 'Announcements', icon: '📢' },
   { to: '/employee/holidays', label: 'Holidays', icon: '🎉' },
