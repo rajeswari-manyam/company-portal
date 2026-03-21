@@ -504,9 +504,7 @@ export default function Login() {
         <div className="mt-8 p-4 rounded-xl text-xs"
           style={{ background: 'rgba(26,42,94,0.06)', border: '1px solid rgba(26,42,94,0.1)' }}
         >
-          <p className="font-bold text-gray-500 uppercase tracking-wider mb-2">Demo Credentials</p>
-          <p className="text-gray-800 mb-1"><b>Admin:</b> admin@test.com / Admin@123</p>
-          <p className="text-gray-400 text-[11px]">Admin adds HR → HR adds Employees</p>
+      
         </div>
       </div>
     );

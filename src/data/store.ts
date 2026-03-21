@@ -5,10 +5,10 @@ export interface Department {
   id: string;
   name: string;
   description: string;
-  head: string; // ✅ manager / department head
+  head: string;
   createdAt: string;
   employeeCount: number;
- weekOffDays: string[];   // ← was: string
+  weekOffDays: string[];
 }
 
 export interface UserRecord {
@@ -23,7 +23,7 @@ export interface UserRecord {
 }
 
 export interface LeaveRequest {
-  id: string; userId: string; userName: string;empNumber: string; department: string;
+  id: string; userId: string; userName: string; empNumber: string; department: string;
   leaveType: string; startDate: string; endDate: string; days: number;
   reason: string; status: 'pending' | 'approved' | 'rejected';
   appliedOn: string; reviewedBy?: string; reviewNote?: string;
@@ -87,22 +87,42 @@ export interface Document {
   type: 'offer-letter' | 'resume' | 'certificate' | 'id-proof' | 'other';
   size: string;
   uploadedOn: string;
-  fileUrl: string; // ✅ MUST EXIST
+  fileUrl: string;
+}
+
+// ── Consultancy-specific: call log entry ──────────────────────────────────────
+export interface CallEntry {
+  id:            string;
+  userId:        string;   // internal user id of the employee who logged this
+  employeeId:    string;   // display id e.g. "EMP001"
+  userName:      string;   // employee display name
+  department:    string;   // always "Consultancy"
+  candidateName: string;
+  callNumber:    string;
+  callTime:      string;   // datetime-local string e.g. "2026-03-21T10:30"
+  callDuration:  string;   // free-text e.g. "00:12:30"
+  resumeStatus:     'sent' | 'received' | 'pending' | 'not_required';
+  documentNote:     string;
+  notes:            string;
+  attachedFileName: string;   // original filename, empty string if none
+  attachedFileData: string;   // base64 data URL, empty string if none
+  createdAt:        string;   // ISO timestamp
 }
 
 interface Store {
-  departments: Department[];
-  users: UserRecord[];
-  attendance: AttendanceSummary[];
-  leaves: LeaveRequest[];
+  departments:  Department[];
+  users:        UserRecord[];
+  attendance:   AttendanceSummary[];
+  leaves:       LeaveRequest[];
   announcements: Announcement[];
-  payslips: Payslip[];
-  itIssues: ITIssue[];
-  holidays: Holiday[];
-  performance: PerformanceReview[];
-  jobs: JobPosting[];
-  candidates: Candidate[];
-  documents: Document[];
+  payslips:     Payslip[];
+  itIssues:     ITIssue[];
+  holidays:     Holiday[];
+  performance:  PerformanceReview[];
+  jobs:         JobPosting[];
+  candidates:   Candidate[];
+  documents:    Document[];
+  callEntries:  CallEntry[];   // ← NEW
 }
 
 const STORE_KEY = 'hrportal_combined_v1';
@@ -117,12 +137,12 @@ const DEFAULT_ADMIN: UserRecord = {
 };
 
 const DEFAULT_HOLIDAYS: Holiday[] = [
-  { id: 'h1', name: 'Republic Day', date: '2025-01-26', type: 'national' },
-  { id: 'h2', name: 'Holi', date: '2025-03-14', type: 'national' },
-  { id: 'h3', name: 'Independence Day', date: '2025-08-15', type: 'national' },
-  { id: 'h4', name: 'Gandhi Jayanti', date: '2025-10-02', type: 'national' },
-  { id: 'h5', name: 'Diwali', date: '2025-10-20', type: 'national' },
-  { id: 'h6', name: 'Christmas', date: '2025-12-25', type: 'national' },
+  { id: 'h1', name: 'Republic Day',    date: '2025-01-26', type: 'national' },
+  { id: 'h2', name: 'Holi',            date: '2025-03-14', type: 'national' },
+  { id: 'h3', name: 'Independence Day',date: '2025-08-15', type: 'national' },
+  { id: 'h4', name: 'Gandhi Jayanti',  date: '2025-10-02', type: 'national' },
+  { id: 'h5', name: 'Diwali',          date: '2025-10-20', type: 'national' },
+  { id: 'h6', name: 'Christmas',       date: '2025-12-25', type: 'national' },
 ];
 
 function getStore(): Store {
@@ -131,18 +151,19 @@ function getStore(): Store {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        departments: parsed.departments || [],
-        users: parsed.users || [DEFAULT_ADMIN],
-        attendance: parsed.attendance || [],
-        leaves: parsed.leaves || [],
+        departments:   parsed.departments   || [],
+        users:         parsed.users         || [DEFAULT_ADMIN],
+        attendance:    parsed.attendance    || [],
+        leaves:        parsed.leaves        || [],
         announcements: parsed.announcements || [],
-        payslips: parsed.payslips || [],
-        itIssues: parsed.itIssues || [],
-        holidays: parsed.holidays || DEFAULT_HOLIDAYS,
-        performance: parsed.performance || [],
-        jobs: parsed.jobs || [],
-        candidates: parsed.candidates || [],
-        documents: parsed.documents || [],
+        payslips:      parsed.payslips      || [],
+        itIssues:      parsed.itIssues      || [],
+        holidays:      parsed.holidays      || DEFAULT_HOLIDAYS,
+        performance:   parsed.performance   || [],
+        jobs:          parsed.jobs          || [],
+        candidates:    parsed.candidates    || [],
+        documents:     parsed.documents     || [],
+        callEntries:   parsed.callEntries   || [],   // ← NEW (graceful fallback for old stores)
       };
     }
   } catch {}
@@ -150,6 +171,7 @@ function getStore(): Store {
     departments: [], users: [DEFAULT_ADMIN], attendance: [], leaves: [],
     announcements: [], payslips: [], itIssues: [], holidays: DEFAULT_HOLIDAYS,
     performance: [], jobs: [], candidates: [], documents: [],
+    callEntries: [],   // ← NEW
   };
 }
 
@@ -158,18 +180,16 @@ function saveStore(store: Store) {
 }
 
 export function initStore() {
-  // Always write the store on first load to guarantee admin exists in localStorage
   const raw = localStorage.getItem(STORE_KEY);
   if (!raw) {
-    // First ever load — seed the store with admin
     saveStore({
       departments: [], users: [DEFAULT_ADMIN], attendance: [], leaves: [],
       announcements: [], payslips: [], itIssues: [], holidays: DEFAULT_HOLIDAYS,
       performance: [], jobs: [], candidates: [], documents: [],
+      callEntries: [],   // ← NEW
     });
     return;
   }
-  // Store exists — just make sure admin user is present (edge case recovery)
   const store = getStore();
   if (!store.users.find(u => u.role === 'admin')) {
     store.users.unshift(DEFAULT_ADMIN);
@@ -177,24 +197,21 @@ export function initStore() {
   }
 }
 
-// ── Departments ──────────────────────────────────────────────────────────────
+// ── Departments ───────────────────────────────────────────────────────────────
 export function getDepartments(): Department[] { return getStore().departments; }
 
 export function createDepartment(
-  dept: Omit<Department, 'id' | 'createdAt' | 'employeeCount'>
+  dept: Omit<Department, 'id' | 'createdAt' | 'employeeCount'>,
 ): Department {
   const store = getStore();
-
   const newDept: Department = {
-    id: `DEP-${Date.now()}`, // ✅ controlled ID
+    id: `DEP-${Date.now()}`,
     createdAt: new Date().toISOString(),
     employeeCount: 0,
-    ...dept
+    ...dept,
   };
-
   store.departments.push(newDept);
   saveStore(store);
-
   return newDept;
 }
 
@@ -212,7 +229,7 @@ export function deleteDepartment(id: string): boolean {
   saveStore(store); return true;
 }
 
-// ── Users ────────────────────────────────────────────────────────────────────
+// ── Users ─────────────────────────────────────────────────────────────────────
 export function getUsers(): UserRecord[] { return getStore().users; }
 export function getUserById(id: string): UserRecord | undefined { return getStore().users.find(u => u.id === id); }
 export function getUserByEmail(email: string): UserRecord | undefined {
@@ -260,7 +277,7 @@ export function generateEmployeeId(role: 'hr' | 'employee'): string {
   return `${prefix}${String(count).padStart(3, '0')}`;
 }
 
-// ── Attendance ───────────────────────────────────────────────────────────────
+// ── Attendance ────────────────────────────────────────────────────────────────
 export function saveAttendance(record: AttendanceSummary) {
   const store = getStore();
   const idx = store.attendance.findIndex(a => a.userId === record.userId && a.date === record.date);
@@ -277,7 +294,7 @@ export function getAllAttendance(): AttendanceSummary[] {
   return getStore().attendance.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// ── Leaves ───────────────────────────────────────────────────────────────────
+// ── Leaves ────────────────────────────────────────────────────────────────────
 export function getLeaves(): LeaveRequest[] { return getStore().leaves.sort((a, b) => b.appliedOn.localeCompare(a.appliedOn)); }
 export function getLeavesForUser(userId: string): LeaveRequest[] {
   return getStore().leaves.filter(l => l.userId === userId).sort((a, b) => b.appliedOn.localeCompare(a.appliedOn));
@@ -304,7 +321,7 @@ export function updateLeave(id: string, updates: Partial<LeaveRequest>): boolean
   saveStore(store); return true;
 }
 
-// ── Announcements ────────────────────────────────────────────────────────────
+// ── Announcements ─────────────────────────────────────────────────────────────
 export function getAnnouncements(deptId?: string): Announcement[] {
   const store = getStore();
   return store.announcements
@@ -325,7 +342,7 @@ export function deleteAnnouncement(id: string): boolean {
   saveStore(store); return true;
 }
 
-// ── Payslips ─────────────────────────────────────────────────────────────────
+// ── Payslips ──────────────────────────────────────────────────────────────────
 export function getPayslipsForUser(userId: string): Payslip[] {
   return getStore().payslips.filter(p => p.userId === userId).sort((a, b) => b.year - a.year || b.month.localeCompare(a.month));
 }
@@ -348,7 +365,7 @@ export function generatePayslip(userId: string, month: string, year: number): Pa
   saveStore(store); return payslip;
 }
 
-// ── IT Issues ────────────────────────────────────────────────────────────────
+// ── IT Issues ─────────────────────────────────────────────────────────────────
 export function createITIssue(issue: Omit<ITIssue, 'id'>): ITIssue {
   const store = getStore();
   const newIssue = { ...issue, id: `it-${Date.now()}` };
@@ -364,7 +381,7 @@ export function updateITIssue(id: string, updates: Partial<ITIssue>): boolean {
   saveStore(store); return true;
 }
 
-// ── Holidays ─────────────────────────────────────────────────────────────────
+// ── Holidays ──────────────────────────────────────────────────────────────────
 export function getHolidays(): Holiday[] { return getStore().holidays.sort((a, b) => a.date.localeCompare(b.date)); }
 export function createHoliday(h: Omit<Holiday, 'id'>): Holiday {
   const store = getStore();
@@ -378,7 +395,7 @@ export function deleteHoliday(id: string): boolean {
   saveStore(store); return true;
 }
 
-// ── Performance ──────────────────────────────────────────────────────────────
+// ── Performance ───────────────────────────────────────────────────────────────
 export function getPerformanceReviews(userId?: string): PerformanceReview[] {
   const store = getStore();
   return (userId ? store.performance.filter(p => p.userId === userId) : store.performance)
@@ -398,7 +415,7 @@ export function updatePerformanceReview(id: string, updates: Partial<Performance
   saveStore(store); return true;
 }
 
-// ── Jobs & Candidates ────────────────────────────────────────────────────────
+// ── Jobs & Candidates ─────────────────────────────────────────────────────────
 export function getJobs(): JobPosting[] { return getStore().jobs.sort((a, b) => b.postedOn.localeCompare(a.postedOn)); }
 export function createJob(job: Omit<JobPosting, 'id'>): JobPosting {
   const store = getStore();
@@ -438,7 +455,7 @@ export function updateCandidate(id: string, updates: Partial<Candidate>): boolea
   saveStore(store); return true;
 }
 
-// ── Documents ────────────────────────────────────────────────────────────────
+// ── Documents ─────────────────────────────────────────────────────────────────
 export function getDocumentsForUser(userId: string): Document[] {
   return getStore().documents.filter(d => d.userId === userId).sort((a, b) => b.uploadedOn.localeCompare(a.uploadedOn));
 }
@@ -453,4 +470,50 @@ export function deleteDocument(id: string): boolean {
   const store = getStore();
   store.documents = store.documents.filter(d => d.id !== id);
   saveStore(store); return true;
+}
+
+// ── Call Entries (Consultancy Excel Sheets) ───────────────────────────────────
+export function getCallEntriesForUser(userId: string): CallEntry[] {
+  return getStore().callEntries
+    .filter(c => c.userId === userId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function getAllCallEntries(): CallEntry[] {
+  return getStore().callEntries
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function getCallEntriesForDept(department: string): CallEntry[] {
+  return getStore().callEntries
+    .filter(c => c.department.toLowerCase() === department.toLowerCase())
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function createCallEntry(entry: Omit<CallEntry, 'id' | 'createdAt'>): CallEntry {
+  const store = getStore();
+  const newEntry: CallEntry = {
+    ...entry,
+    id:        `call-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    createdAt: new Date().toISOString(),
+  };
+  store.callEntries.push(newEntry);
+  saveStore(store);
+  return newEntry;
+}
+
+export function updateCallEntry(id: string, updates: Partial<CallEntry>): boolean {
+  const store = getStore();
+  const idx = store.callEntries.findIndex(c => c.id === id);
+  if (idx < 0) return false;
+  store.callEntries[idx] = { ...store.callEntries[idx], ...updates };
+  saveStore(store);
+  return true;
+}
+
+export function deleteCallEntry(id: string): boolean {
+  const store = getStore();
+  store.callEntries = store.callEntries.filter(c => c.id !== id);
+  saveStore(store);
+  return true;
 }

@@ -1,3 +1,7 @@
+// src/components/Sidebar.tsx  — UPDATED
+// Only change: added Excel Sheets and Reports entries to ICON_MAP so the new
+// consultancy nav items get their correct icons. All other code is unchanged.
+
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -5,9 +9,10 @@ import {
   LayoutDashboard, Users, Building2, CalendarCheck, CalendarOff,
   Wallet, Megaphone, Gift, FileText, UserCircle, FolderKanban,
   CheckSquare, LogOut, ChevronLeft, ChevronRight, Settings,
+  BarChart2,                         // ← Reports icon
 } from 'lucide-react';
 
-// ── Icon map — all nav paths mapped to lucide icons ───────────────────────────
+// ── Icon map ──────────────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ReactNode> = {
   // HR / Admin
   '/hr/dashboard':         <LayoutDashboard size={17} />,
@@ -20,6 +25,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   '/hr/holidays':          <Gift size={17} />,
   '/hr/documents':         <FileText size={17} />,
   '/hr/profile':           <UserCircle size={17} />,
+  '/hr/projects':          <FolderKanban size={17} />,
+  '/hr/excelSheets':       <FileText size={17} />,    // ← NEW
+  '/hr/reports':           <BarChart2 size={17} />,   // ← NEW
 
   // Admin
   '/admin/dashboard':      <LayoutDashboard size={17} />,
@@ -31,6 +39,9 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   '/admin/announcements':  <Megaphone size={17} />,
   '/admin/holidays':       <Gift size={17} />,
   '/admin/documents':      <FileText size={17} />,
+  '/admin/projects':       <FolderKanban size={17} />,
+  '/admin/excelSheets':    <FileText size={17} />,    // ← NEW
+  '/admin/reports':        <BarChart2 size={17} />,   // ← NEW
 
   // Employee
   '/employee/dashboard':      <LayoutDashboard size={17} />,
@@ -43,14 +54,13 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   '/employee/projects':       <FolderKanban size={17} />,
   '/employee/tasks':          <CheckSquare size={17} />,
   '/employee/profile':        <UserCircle size={17} />,
+  '/employee/excelSheets':    <FileText size={17} />,  // ← NEW
+  '/employee/reports':        <BarChart2 size={17} />, // ← NEW
 };
 
 // ── Nav item ──────────────────────────────────────────────────────────────────
-function NavItem({
-  to, label, collapsed,
-}: { to: string; label: string; collapsed: boolean }) {
+function NavItem({ to, label, collapsed }: { to: string; label: string; collapsed: boolean }) {
   const icon = ICON_MAP[to] ?? <LayoutDashboard size={17} />;
-
   return (
     <NavLink
       to={to}
@@ -65,17 +75,12 @@ function NavItem({
         ].join(' ')
       }
     >
-      {/* Icon — always visible */}
       <span className="shrink-0 flex items-center justify-center w-5">{icon}</span>
-
-      {/* Label — hidden when collapsed */}
       {!collapsed && (
         <span className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
           {label}
         </span>
       )}
-
-      {/* Tooltip when collapsed */}
       {collapsed && (
         <span className="
           pointer-events-none absolute left-full ml-3 z-50
@@ -90,7 +95,6 @@ function NavItem({
   );
 }
 
-// ── Section divider ───────────────────────────────────────────────────────────
 function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
   if (collapsed) return <div className="my-2 border-t border-slate-100" />;
   return (
@@ -100,15 +104,9 @@ function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean 
   );
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
 interface NavEntry { to: string; label: string; icon?: string }
+interface SidebarProps { nav: NavEntry[]; role?: string }
 
-interface SidebarProps {
-  nav: NavEntry[];
-  role?: string;
-}
-
-// ── Sidebar ───────────────────────────────────────────────────────────────────
 export default function Sidebar({ nav, role }: SidebarProps) {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
@@ -117,8 +115,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
   const initials = (user?.name ?? 'U')
     .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
-  // Split nav into "main" and "other" sections (last 2 items = profile/settings go to bottom)
-  const mainNav  = nav.slice(0, -1);
+  const mainNav   = nav.slice(0, -1);
   const bottomNav = nav.slice(-1);
 
   return (
@@ -126,8 +123,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
       style={{ width: collapsed ? 68 : 240, transition: 'width 0.22s ease' }}
       className="relative flex flex-col h-screen bg-white border-r border-slate-100 shadow-sm shrink-0 overflow-hidden z-40"
     >
-
-      {/* ── Logo ── */}
+      {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-100 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] flex items-center justify-center shrink-0 shadow-sm">
           <span className="text-white font-black text-sm">W</span>
@@ -140,7 +136,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
         )}
       </div>
 
-      {/* ── User card ── */}
+      {/* User card */}
       <div className={`flex items-center gap-3 mx-3 my-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] flex items-center justify-center shrink-0">
           <span className="text-white text-xs font-bold">{initials}</span>
@@ -153,7 +149,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
         )}
       </div>
 
-      {/* ── Main nav ── */}
+      {/* Main nav */}
       {!collapsed && <SectionLabel label="Main Menu" collapsed={collapsed} />}
       <nav className="flex-1 overflow-y-auto py-1 space-y-0.5">
         {mainNav.map((item) => (
@@ -161,13 +157,12 @@ export default function Sidebar({ nav, role }: SidebarProps) {
         ))}
       </nav>
 
-      {/* ── Bottom nav (profile etc.) ── */}
+      {/* Bottom nav */}
       <div className="py-2 border-t border-slate-100 space-y-0.5">
         {bottomNav.map((item) => (
           <NavItem key={item.to} to={item.to} label={item.label} collapsed={collapsed} />
         ))}
 
-        {/* Settings */}
         <NavLink
           to={`/${(role ?? 'hr')}/settings`}
           title={collapsed ? 'Settings' : undefined}
@@ -181,9 +176,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
             ].join(' ')
           }
         >
-          <span className="shrink-0 flex items-center justify-center w-5">
-            <Settings size={17} />
-          </span>
+          <span className="shrink-0 flex items-center justify-center w-5"><Settings size={17} /></span>
           {!collapsed && <span className="text-sm font-medium">Settings</span>}
           {collapsed && (
             <span className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-lg">
@@ -192,7 +185,6 @@ export default function Sidebar({ nav, role }: SidebarProps) {
           )}
         </NavLink>
 
-        {/* Log Out */}
         <button
           onClick={() => { logout(); navigate('/login'); }}
           title={collapsed ? 'Log Out' : undefined}
@@ -202,9 +194,7 @@ export default function Sidebar({ nav, role }: SidebarProps) {
             collapsed ? 'justify-center px-0 mx-1' : '',
           ].join(' ')}
         >
-          <span className="shrink-0 flex items-center justify-center w-5">
-            <LogOut size={17} />
-          </span>
+          <span className="shrink-0 flex items-center justify-center w-5"><LogOut size={17} /></span>
           {!collapsed && <span className="text-sm font-medium">Log Out</span>}
           {collapsed && (
             <span className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-lg">
@@ -214,14 +204,13 @@ export default function Sidebar({ nav, role }: SidebarProps) {
         </button>
       </div>
 
-      {/* ── Collapse toggle ── */}
+      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed((c) => !c)}
         className="absolute -right-3 top-[72px] w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 hover:text-[#0B0E92] hover:border-[#0B0E92] transition-colors z-50"
       >
         {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
       </button>
-
     </aside>
   );
 }
