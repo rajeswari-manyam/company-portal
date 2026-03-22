@@ -1,14 +1,13 @@
 // src/pages/employee/MyExcelSheets.tsx
 // Consultancy employees log their daily call activity here.
-// Tabs: Call Logs (add/edit/delete) | Daily Report (read-only summary)
-// Interview workflow: once scheduled, row becomes "Screened" — no edit/delete.
+// Tabs: Call Logs (add/edit/delete) | Monthly Report (month picker, that employee only)
 
 import { useState, useRef, useMemo } from 'react';
 import {
   Plus, Search, Phone, Clock, FileCheck2, Trash2, Edit2,
   Download, User, MessageSquare, Calendar, Paperclip, X,
   FileSpreadsheet, BarChart2, CheckCircle2, CalendarCheck,
-  TrendingUp, Lock,
+  TrendingUp, Lock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -18,23 +17,27 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 const RESUME_STATUS_LABELS: Record<CallEntry['resumeStatus'], string> = {
-  sent:         'Resume Sent',
-  received:     'Resume Received',
-  pending:      'Pending',
+  sent: 'Resume Sent',
+  received: 'Resume Received',
+  pending: 'Pending',
   not_required: 'Not Required',
 };
 
 const RESUME_STATUS_COLORS: Record<CallEntry['resumeStatus'], string> = {
-  sent:         'bg-blue-100 text-blue-700',
-  received:     'bg-emerald-100 text-emerald-700',
-  pending:      'bg-amber-100 text-amber-700',
+  sent: 'bg-blue-100 text-blue-700',
+  received: 'bg-emerald-100 text-emerald-700',
+  pending: 'bg-amber-100 text-amber-700',
   not_required: 'bg-slate-100 text-slate-500',
 };
 
-// Interview / screening statuses stored in `notes` prefix
-const INTERVIEW_PREFIX  = '[INTERVIEW_SCHEDULED]';
-const SCREENED_PREFIX   = '[SCREENED]';
+const INTERVIEW_PREFIX = '[INTERVIEW_SCHEDULED]';
+const SCREENED_PREFIX = '[SCREENED]';
 
 function isInterviewScheduled(entry: CallEntry) {
   return entry.notes?.startsWith(INTERVIEW_PREFIX) || entry.notes?.startsWith(SCREENED_PREFIX);
@@ -42,9 +45,19 @@ function isInterviewScheduled(entry: CallEntry) {
 function isScreened(entry: CallEntry) {
   return entry.notes?.startsWith(SCREENED_PREFIX);
 }
-// Row is locked (no edit/delete) once screened
 function isLocked(entry: CallEntry) {
   return isScreened(entry);
+}
+
+function parseDurationSecs(dur: string): number {
+  const parts = (dur ?? '').split(':').map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+function fmtDur(s: number): string {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 }
 
 const ACCEPTED_TYPES = '.xlsx,.xls,.csv,.pdf,.doc,.docx,.png,.jpg,.jpeg';
@@ -53,24 +66,19 @@ type FormShape = Omit<CallEntry, 'id' | 'userId' | 'employeeId' | 'userName' | '
 
 function emptyForm(): FormShape {
   return {
-    candidateName:    '',
-    callNumber:       '',
-    callTime:         new Date().toISOString().slice(0, 16),
-    callDuration:     '',
-    resumeStatus:     'pending',
-    documentNote:     '',
-    notes:            '',
+    candidateName: '',
+    callNumber: '',
+    callTime: new Date().toISOString().slice(0, 16),
+    callDuration: '',
+    resumeStatus: 'pending',
+    documentNote: '',
+    notes: '',
     attachedFileName: '',
     attachedFileData: '',
   };
 }
 
-function localDateStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Interview Badge ───────────────────────────────────────────────────────────
 
 function InterviewBadge({ entry, onScreened }: { entry: CallEntry; onScreened: () => void }) {
   if (isScreened(entry)) {
@@ -95,175 +103,231 @@ function InterviewBadge({ entry, onScreened }: { entry: CallEntry; onScreened: (
   return null;
 }
 
-// ── Daily Report Tab ──────────────────────────────────────────────────────────
+// ── Monthly Report Tab ────────────────────────────────────────────────────────
 
-interface ReportProps { entries: CallEntry[] }
+function MonthlyReport({ allEntries }: { allEntries: CallEntry[] }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
 
-function DailyReport({ entries }: ReportProps) {
-  const today = localDateStr();
-  const [reportDate, setReportDate] = useState(today);
+  function prevMonth() {
+    if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1);
+  }
 
-  const dayEntries = useMemo(
-    () => entries.filter(e => e.callTime?.slice(0, 10) === reportDate),
-    [entries, reportDate],
-  );
+  // Only entries for the selected month
+  const monthEntries = useMemo(() => {
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    return allEntries.filter(e => e.callTime?.startsWith(prefix));
+  }, [allEntries, year, month]);
 
-  const totalCalls     = dayEntries.length;
-  const resumeReceived = dayEntries.filter(e => e.resumeStatus === 'received').length;
-  const resumeSent     = dayEntries.filter(e => e.resumeStatus === 'sent').length;
-  const pending        = dayEntries.filter(e => e.resumeStatus === 'pending').length;
-  const interviews     = dayEntries.filter(e => isInterviewScheduled(e)).length;
-  const screened       = dayEntries.filter(e => isScreened(e)).length;
+  // Stats
+  const totalCalls = monthEntries.length;
+  const resumeReceived = monthEntries.filter(e => e.resumeStatus === 'received').length;
+  const resumeSent = monthEntries.filter(e => e.resumeStatus === 'sent').length;
+  const pending = monthEntries.filter(e => e.resumeStatus === 'pending').length;
+  const interviews = monthEntries.filter(e => isInterviewScheduled(e)).length;
+  const screened = monthEntries.filter(e => isScreened(e)).length;
+  const withAttachment = monthEntries.filter(e => !!e.attachedFileName).length;
 
-  // Total call duration in seconds
-  const totalDurationSecs = dayEntries.reduce((sum, e) => {
-    const parts = (e.callDuration ?? '').split(':').map(Number);
-    if (parts.length === 3) return sum + parts[0]*3600 + parts[1]*60 + parts[2];
-    if (parts.length === 2) return sum + parts[0]*60  + parts[1];
-    return sum;
-  }, 0);
-  const fmtDur = (s: number) => {
-    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
-  };
+  const totalSecs = monthEntries.reduce((s, e) => s + parseDurationSecs(e.callDuration), 0);
+  const avgSecs = totalCalls > 0 ? Math.round(totalSecs / totalCalls) : 0;
+
+  // Group by day for breakdown table
+  const byDay = useMemo(() => {
+    const map: Record<string, CallEntry[]> = {};
+    monthEntries.forEach(e => {
+      const day = e.callTime?.slice(0, 10) ?? 'unknown';
+      if (!map[day]) map[day] = [];
+      map[day].push(e);
+    });
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [monthEntries]);
 
   function exportReport() {
-    const headers = ['Candidate','Phone','Call Time','Duration','Resume Status','Interview','Notes'];
-    const rows = dayEntries.map(e => [
-      e.candidateName, e.callNumber, e.callTime, e.callDuration,
+    const headers = ['Date', 'Candidate', 'Phone', 'Duration', 'Resume Status', 'Interview', 'Notes'];
+    const rows = monthEntries.map(e => [
+      e.callTime?.slice(0, 10) ?? '',
+      e.candidateName,
+      e.callNumber,
+      e.callDuration,
       RESUME_STATUS_LABELS[e.resumeStatus],
       isScreened(e) ? 'Screened' : isInterviewScheduled(e) ? 'Interview Scheduled' : '—',
-      e.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim(),
+      e.notes.replace(INTERVIEW_PREFIX, '').replace(SCREENED_PREFIX, '').trim(),
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const csv = [headers, ...rows]
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a'); a.href = url;
-    a.download = `daily-report-${reportDate}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `call-report-${year}-${String(month).padStart(2, '0')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
     <div className="space-y-5">
-      {/* Date picker + export */}
+
+      {/* Month picker + export */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="date"
-              value={reportDate}
-              max={today}
-              onChange={e => setReportDate(e.target.value)}
-              className="pl-9 pr-3 h-10 rounded-xl border border-slate-200 bg-white text-sm text-slate-700
-                         focus:outline-none focus:ring-2 focus:ring-[#0B0E92]/20 focus:border-[#0B0E92] transition-all"
-            />
-          </div>
-          <span className="text-sm text-slate-500">
-            {new Date(reportDate + 'T12:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        <div className="flex items-center gap-3 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-2.5">
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-sm font-semibold text-slate-700 min-w-[130px] text-center">
+            {MONTH_NAMES[month - 1]} {year}
           </span>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+            <ChevronRight size={16} />
+          </button>
         </div>
-        <button onClick={exportReport}
+        <button
+          onClick={exportReport}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200
-                     bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all">
-          <Download size={14} /> Export Day
+                     bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all"
+        >
+          <Download size={14} /> Export Month
         </button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {[
-          { label: 'Total Calls',      value: totalCalls,     icon: <Phone size={16} />,        color: 'from-[#0B0E92] to-[#69A6F0]'  },
-          { label: 'Resume Received',  value: resumeReceived, icon: <FileCheck2 size={16} />,   color: 'from-emerald-500 to-teal-400'  },
-          { label: 'Resume Sent',      value: resumeSent,     icon: <FileSpreadsheet size={16}/>,color: 'from-blue-500 to-sky-400'      },
-          { label: 'Pending',          value: pending,        icon: <Clock size={16} />,         color: 'from-amber-400 to-orange-400'  },
-          { label: 'Interview Sched.', value: interviews,     icon: <CalendarCheck size={16} />, color: 'from-violet-500 to-purple-400' },
-          { label: 'Screened',         value: screened,       icon: <CheckCircle2 size={16} />,  color: 'from-rose-400 to-pink-400'     },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
-            <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center`}>
-              <span className="text-white">{s.icon}</span>
-            </div>
-            <p className="text-xl font-bold text-slate-800">{s.value}</p>
-            <p className="text-[10px] text-slate-400 font-medium leading-tight">{s.label}</p>
+      {/* No data state */}
+      {totalCalls === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] opacity-20 flex items-center justify-center">
+            <BarChart2 size={24} className="text-white" />
           </div>
-        ))}
-      </div>
-
-      {/* Total duration */}
-      {totalCalls > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] flex items-center justify-center shrink-0">
-            <TrendingUp size={16} className="text-white" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-400 font-medium">Total Call Duration</p>
-            <p className="text-lg font-bold text-slate-800">{fmtDur(totalDurationSecs)}</p>
-          </div>
-          <div className="ml-auto text-right">
-            <p className="text-xs text-slate-400">Avg per call</p>
-            <p className="text-base font-semibold text-slate-700">{totalCalls > 0 ? fmtDur(Math.round(totalDurationSecs / totalCalls)) : '—'}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Day table — read-only, no edit/delete */}
-      {dayEntries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] opacity-20 flex items-center justify-center">
-            <BarChart2 size={20} className="text-white" />
-          </div>
-          <p className="text-sm font-medium text-slate-500">No calls logged for this day</p>
+          <p className="text-sm font-semibold text-slate-500">
+            No calls logged for {MONTH_NAMES[month - 1]} {year}
+          </p>
+          <p className="text-xs text-slate-400">Try selecting a different month</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <p className="text-sm font-semibold text-slate-700">{totalCalls} call{totalCalls !== 1 ? 's' : ''} on this day</p>
+        <>
+          {/* Primary stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Calls', value: totalCalls, icon: <Phone size={18} />, color: 'from-[#0B0E92] to-[#69A6F0]' },
+              { label: 'Resume Received', value: resumeReceived, icon: <FileCheck2 size={18} />, color: 'from-emerald-500 to-teal-400' },
+              { label: 'Interviews', value: interviews, icon: <CalendarCheck size={18} />, color: 'from-violet-500 to-purple-400' },
+              { label: 'Screened', value: screened, icon: <CheckCircle2 size={18} />, color: 'from-rose-400 to-pink-400' },
+            ].map(s => (
+              <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
+                  <span className="text-white">{s.icon}</span>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-800">{s.value}</p>
+                  <p className="text-xs text-slate-500">{s.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60">
-                  {['Candidate','Phone','Time','Duration','Resume Status','Interview','Notes'].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dayEntries.map((entry, idx) => (
-                  <tr key={entry.id} className={`border-b border-slate-50 ${idx % 2 ? 'bg-slate-50/30' : ''}`}>
-                    <td className="px-4 py-3 font-medium text-slate-800">{entry.candidateName}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{entry.callNumber}</td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      {new Date(entry.callTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-700">{entry.callDuration}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${RESUME_STATUS_COLORS[entry.resumeStatus]}`}>
-                        {RESUME_STATUS_LABELS[entry.resumeStatus]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {isScreened(entry) ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                          <CheckCircle2 size={10} /> Screened
-                        </span>
-                      ) : isInterviewScheduled(entry) ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
-                          <CalendarCheck size={10} /> Scheduled
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate">
-                      {entry.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim() || '—'}
-                    </td>
+
+          {/* Secondary stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Resume Sent', value: resumeSent, icon: <FileSpreadsheet size={16} />, color: 'from-blue-500 to-sky-400' },
+              { label: 'Pending', value: pending, icon: <Clock size={16} />, color: 'from-amber-400 to-orange-400' },
+              { label: 'With Attachment', value: withAttachment, icon: <Paperclip size={16} />, color: 'from-cyan-500 to-blue-400' },
+              { label: 'Active Days', value: byDay.length, icon: <Calendar size={16} />, color: 'from-indigo-400 to-violet-400' },
+            ].map(s => (
+              <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
+                  <span className="text-white">{s.icon}</span>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-slate-800">{s.value}</p>
+                  <p className="text-xs text-slate-500">{s.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Duration summary */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] flex items-center justify-center shrink-0">
+                <TrendingUp size={18} className="text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-medium">Total Call Duration</p>
+                <p className="text-xl font-bold text-slate-800">{fmtDur(totalSecs)}</p>
+              </div>
+            </div>
+            <div className="sm:border-l sm:border-slate-100 sm:pl-6">
+              <p className="text-xs text-slate-400 font-medium">Avg Duration / Call</p>
+              <p className="text-xl font-bold text-slate-800">{fmtDur(avgSecs)}</p>
+            </div>
+            <div className="sm:border-l sm:border-slate-100 sm:pl-6 sm:ml-auto">
+              <p className="text-xs text-slate-400 font-medium">Screening Rate</p>
+              <p className="text-xl font-bold text-slate-800">
+                {interviews > 0 ? `${Math.round((screened / interviews) * 100)}%` : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Daily breakdown table */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700">
+                Daily Breakdown — {MONTH_NAMES[month - 1]} {year}
+              </h3>
+              <span className="text-xs text-slate-400">{totalCalls} total call{totalCalls !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    {['Date', 'Calls', 'Total Duration', 'Resume Received', 'Interviews', 'Screened'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {byDay.map(([day, entries], idx) => {
+                    const daySecs = entries.reduce((s, e) => s + parseDurationSecs(e.callDuration), 0);
+                    const dayReceived = entries.filter(e => e.resumeStatus === 'received').length;
+                    const dayInterviews = entries.filter(e => isInterviewScheduled(e)).length;
+                    const dayScreened = entries.filter(e => isScreened(e)).length;
+                    return (
+                      <tr key={day} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${idx % 2 ? 'bg-slate-50/30' : ''}`}>
+                        <td className="px-4 py-3 font-medium text-slate-700">
+                          {new Date(day + 'T00:00').toLocaleDateString('en-IN', {
+                            weekday: 'short', day: '2-digit', month: 'short',
+                          })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#EEF0FF] text-[#0B0E92]">
+                            <Phone size={10} /> {entries.length}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-700">{fmtDur(daySecs)}</td>
+                        <td className="px-4 py-3">
+                          {dayReceived > 0
+                            ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{dayReceived}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {dayInterviews > 0
+                            ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">{dayInterviews}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {dayScreened > 0
+                            ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><CheckCircle2 size={10} /> {dayScreened}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -284,13 +348,12 @@ export default function MyExcelSheets() {
     if (user) setEntries(getCallEntriesForUser(user.id));
   }
 
-  const [search,    setSearch]    = useState('');
-  const [showForm,  setShowForm]  = useState(false);
-  const [editId,    setEditId]    = useState<string | null>(null);
-  const [form,      setForm]      = useState<FormShape>(emptyForm());
-  const [errors,    setErrors]    = useState<Partial<Record<keyof FormShape, string>>>({});
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormShape>(emptyForm());
+  const [errors, setErrors] = useState<Partial<Record<keyof FormShape, string>>>({});
   const [fileError, setFileError] = useState('');
-  // Interview scheduled toggle in form
   const [scheduleInterview, setScheduleInterview] = useState(false);
 
   function fieldSet<K extends keyof FormShape>(key: K, value: FormShape[K]) {
@@ -325,9 +388,9 @@ export default function MyExcelSheets() {
   function validate(): boolean {
     const errs: typeof errors = {};
     if (!form.candidateName.trim()) errs.candidateName = 'Name is required';
-    if (!form.callNumber.trim())    errs.callNumber    = 'Phone number is required';
-    if (!form.callTime)             errs.callTime      = 'Call time is required';
-    if (!form.callDuration.trim())  errs.callDuration  = 'Duration is required';
+    if (!form.callNumber.trim()) errs.callNumber = 'Phone number is required';
+    if (!form.callTime) errs.callTime = 'Call time is required';
+    if (!form.callDuration.trim()) errs.callDuration = 'Duration is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -340,15 +403,15 @@ export default function MyExcelSheets() {
   }
 
   function openEdit(entry: CallEntry) {
-    const rawNotes = entry.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim();
+    const rawNotes = entry.notes.replace(INTERVIEW_PREFIX, '').replace(SCREENED_PREFIX, '').trim();
     setForm({
-      candidateName:    entry.candidateName,
-      callNumber:       entry.callNumber,
-      callTime:         entry.callTime,
-      callDuration:     entry.callDuration,
-      resumeStatus:     entry.resumeStatus,
-      documentNote:     entry.documentNote,
-      notes:            rawNotes,
+      candidateName: entry.candidateName,
+      callNumber: entry.callNumber,
+      callTime: entry.callTime,
+      callDuration: entry.callDuration,
+      resumeStatus: entry.resumeStatus,
+      documentNote: entry.documentNote,
+      notes: rawNotes,
       attachedFileName: entry.attachedFileName ?? '',
       attachedFileData: entry.attachedFileData ?? '',
     });
@@ -358,13 +421,8 @@ export default function MyExcelSheets() {
 
   function handleSave() {
     if (!validate() || !user) return;
-
-    // Prefix notes with interview status if toggled
     const rawNotes = form.notes.trim();
-    const finalNotes = scheduleInterview
-      ? `${INTERVIEW_PREFIX} ${rawNotes}`
-      : rawNotes;
-
+    const finalNotes = scheduleInterview ? `${INTERVIEW_PREFIX} ${rawNotes}` : rawNotes;
     const payload = { ...form, notes: finalNotes };
 
     if (editId) {
@@ -378,9 +436,9 @@ export default function MyExcelSheets() {
         'EMP';
       createCallEntry({
         ...payload,
-        userId:     user.id,
+        userId: user.id,
         employeeId: empId,
-        userName:   user.name ?? emp?.name ?? '',
+        userName: user.name ?? emp?.name ?? '',
         department: (user as any).department ?? emp?.department ?? 'Consultancy',
       });
     }
@@ -388,10 +446,9 @@ export default function MyExcelSheets() {
     setShowForm(false); setEditId(null); setScheduleInterview(false);
   }
 
-  // Mark a scheduled interview as Screened — locks the row
   function markScreened(entry: CallEntry) {
     if (!confirm(`Mark "${entry.candidateName}" as Screened? This will lock the row.`)) return;
-    const rawNotes = entry.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim();
+    const rawNotes = entry.notes.replace(INTERVIEW_PREFIX, '').replace(SCREENED_PREFIX, '').trim();
     updateCallEntry(entry.id, { notes: `${SCREENED_PREFIX} ${rawNotes}` });
     refresh();
   }
@@ -400,20 +457,19 @@ export default function MyExcelSheets() {
     if (confirm('Delete this call log entry?')) { deleteCallEntry(id); refresh(); }
   }
 
-  // ── Export CSV ─────────────────────────────────────────────────────────────
   function exportCSV() {
-    const headers = ['Candidate','Phone','Call Time','Duration','Resume Status','Document Note','Interview','Notes','Attachment'];
+    const headers = ['Candidate', 'Phone', 'Call Time', 'Duration', 'Resume Status', 'Document Note', 'Interview', 'Notes', 'Attachment'];
     const rows = filtered.map(e => [
       e.candidateName, e.callNumber, e.callTime, e.callDuration,
       RESUME_STATUS_LABELS[e.resumeStatus], e.documentNote,
       isScreened(e) ? 'Screened' : isInterviewScheduled(e) ? 'Interview Scheduled' : '—',
-      e.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim(),
+      e.notes.replace(INTERVIEW_PREFIX, '').replace(SCREENED_PREFIX, '').trim(),
       e.attachedFileName ?? '',
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a'); a.href = url;
-    a.download = `my-call-log-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `my-call-log-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
   }
 
@@ -422,7 +478,6 @@ export default function MyExcelSheets() {
     return e.candidateName.toLowerCase().includes(q) || e.callNumber.includes(q);
   });
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-5">
 
@@ -452,8 +507,8 @@ export default function MyExcelSheets() {
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         {([
-          { id: 'logs',   label: 'Call Logs',    icon: <Phone size={14} />     },
-          { id: 'report', label: 'Daily Report', icon: <BarChart2 size={14} /> },
+          { id: 'logs', label: 'Call Logs', icon: <Phone size={14} /> },
+          { id: 'report', label: 'Monthly Report', icon: <BarChart2 size={14} /> },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -471,7 +526,6 @@ export default function MyExcelSheets() {
       {/* ══════════════ CALL LOGS TAB ══════════════ */}
       {activeTab === 'logs' && (
         <div className="space-y-5">
-
           {/* Search */}
           <div className="relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -488,7 +542,6 @@ export default function MyExcelSheets() {
                 {editId ? 'Edit Call Log' : 'New Call Log Entry'}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
                 {/* Candidate Name */}
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -578,7 +631,7 @@ export default function MyExcelSheets() {
                   </div>
                 </div>
 
-                {/* Interview scheduled toggle */}
+                {/* Interview toggle */}
                 <div className="sm:col-span-2">
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <div
@@ -589,9 +642,7 @@ export default function MyExcelSheets() {
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200
                         ${scheduleInterview ? 'translate-x-5' : 'translate-x-0.5'}`} />
                     </div>
-                    <span className="text-sm font-medium text-slate-700">
-                      Interview scheduled for next day
-                    </span>
+                    <span className="text-sm font-medium text-slate-700">Interview scheduled for next day</span>
                     {scheduleInterview && (
                       <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">
                         Will be locked after screening
@@ -606,8 +657,7 @@ export default function MyExcelSheets() {
                 {/* File Upload */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Attach Excel / Document
-                    <span className="ml-1 text-slate-400 font-normal">(optional)</span>
+                    Attach Excel / Document <span className="ml-1 text-slate-400 font-normal">(optional)</span>
                   </label>
                   <input ref={fileInputRef} id="excel-file-upload" type="file"
                     accept={ACCEPTED_TYPES} onChange={handleFileChange} className="hidden" />
@@ -628,7 +678,7 @@ export default function MyExcelSheets() {
                       <Paperclip size={15} className="shrink-0" />
                       <span>Click to attach a file</span>
                       <span className="ml-auto text-xs text-slate-400 hidden sm:block">
-                        xlsx · xls · csv · pdf · doc · jpg · png &nbsp;·&nbsp; max 5 MB
+                        xlsx · xls · csv · pdf · doc · jpg · png · max 5 MB
                       </span>
                     </label>
                   )}
@@ -681,7 +731,7 @@ export default function MyExcelSheets() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/60">
-                      {['Candidate','Phone','Call Time','Duration','Resume Status','Interview','Attachment','Notes','Actions'].map(h => (
+                      {['Candidate', 'Phone', 'Call Time', 'Duration', 'Resume Status', 'Interview', 'Attachment', 'Notes', 'Actions'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -692,10 +742,7 @@ export default function MyExcelSheets() {
                       return (
                         <tr key={entry.id}
                           className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors
-                            ${idx % 2 ? 'bg-slate-50/30' : ''}
-                            ${locked ? 'opacity-80' : ''}`}>
-
-                          {/* Candidate */}
+                            ${idx % 2 ? 'bg-slate-50/30' : ''} ${locked ? 'opacity-80' : ''}`}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0B0E92] to-[#69A6F0] flex items-center justify-center shrink-0">
@@ -707,30 +754,22 @@ export default function MyExcelSheets() {
                               </div>
                             </div>
                           </td>
-
                           <td className="px-4 py-3 font-mono text-xs text-slate-600">{entry.callNumber}</td>
-
                           <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                             {new Date(entry.callTime).toLocaleString('en-IN', {
                               day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
                             })}
                           </td>
-
                           <td className="px-4 py-3 font-mono text-slate-700">{entry.callDuration}</td>
-
                           <td className="px-4 py-3">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${RESUME_STATUS_COLORS[entry.resumeStatus]}`}>
                               {RESUME_STATUS_LABELS[entry.resumeStatus]}
                             </span>
                           </td>
-
-                          {/* Interview status */}
                           <td className="px-4 py-3">
                             <InterviewBadge entry={entry} onScreened={() => markScreened(entry)} />
                             {!isInterviewScheduled(entry) && <span className="text-slate-300 text-xs">—</span>}
                           </td>
-
-                          {/* Attachment */}
                           <td className="px-4 py-3">
                             {entry.attachedFileName ? (
                               <button onClick={() => downloadFile(entry)}
@@ -741,12 +780,9 @@ export default function MyExcelSheets() {
                               </button>
                             ) : <span className="text-slate-300 text-xs">—</span>}
                           </td>
-
                           <td className="px-4 py-3 text-slate-500 max-w-[150px] truncate">
-                            {entry.notes.replace(INTERVIEW_PREFIX,'').replace(SCREENED_PREFIX,'').trim() || '—'}
+                            {entry.notes.replace(INTERVIEW_PREFIX, '').replace(SCREENED_PREFIX, '').trim() || '—'}
                           </td>
-
-                          {/* Actions — hidden when locked */}
                           <td className="px-4 py-3">
                             {locked ? (
                               <span className="inline-flex items-center gap-1 text-xs text-slate-400" title="Locked after screening">
@@ -776,8 +812,8 @@ export default function MyExcelSheets() {
         </div>
       )}
 
-      {/* ══════════════ DAILY REPORT TAB ══════════════ */}
-      {activeTab === 'report' && <DailyReport entries={entries} />}
+      {/* ══════════════ MONTHLY REPORT TAB ══════════════ */}
+      {activeTab === 'report' && <MonthlyReport allEntries={entries} />}
     </div>
   );
 }

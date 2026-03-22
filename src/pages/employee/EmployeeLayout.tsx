@@ -1,12 +1,20 @@
-import React from 'react';
+// src/pages/employee/EmployeeLayout.tsx
+
 import { Outlet } from 'react-router-dom';
-import { Layout } from '../../components/common';
-import { EMPLOYEE_NAV } from '../../constants';
+import Sidebar from '../../components/common/Sidebar';
+import { EMPLOYEE_NAV, EMPLOYEE_NAV_CONSULTANCY } from '../../constants';
+import { useIsConsultancy } from '../../hooks/useIsConsultancy';
 
 export default function EmployeeLayout() {
+  const isConsultancy = useIsConsultancy();
+  const nav = isConsultancy ? EMPLOYEE_NAV_CONSULTANCY : EMPLOYEE_NAV;
+
   return (
-    <Layout navItems={[...EMPLOYEE_NAV]}>
-      <Outlet />
-    </Layout>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <Sidebar nav={nav as any} role="employee" />
+      <main className="flex-1 overflow-y-auto">
+        <Outlet />
+      </main>
+    </div>
   );
 }

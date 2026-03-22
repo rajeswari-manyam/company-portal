@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               empId: emp.empId,
               // ✅ backend uses empId (e.g. "EMP_01"), not empNumber
               empNumber: emp.empNumber ?? emp.empId ?? '',
-              department: emp.department,
+             department: emp.dept ?? emp.departmentName ?? emp.department,
               designation: emp.designation,
               firstLogin: emp.firstLogin ?? false,
             });
@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             empId: emp.empId,
             // ✅ backend uses empId (e.g. "EMP_01"), not empNumber
             empNumber: emp.empNumber ?? emp.empId ?? '',
-            department: emp.department,
+          department: emp.dept ?? emp.departmentName ?? emp.department,
             designation: emp.designation,
             firstLogin: false,
           });
