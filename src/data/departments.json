@@ -1,0 +1,47 @@
+{
+  "departments": [
+    { "id": "dept_001", "name": "Human Resources", "code": "HR" },
+    { "id": "dept_002", "name": "Recruitment & Talent Acquisition", "code": "TA" },
+    { "id": "dept_003", "name": "Payroll", "code": "PAY" },
+    { "id": "dept_004", "name": "Finance", "code": "FIN" },
+    { "id": "dept_005", "name": "Accounting", "code": "ACC" },
+    { "id": "dept_006", "name": "Sales", "code": "SAL" },
+    { "id": "dept_007", "name": "Marketing", "code": "MKT" },
+    { "id": "dept_008", "name": "Business Development", "code": "BD" },
+    { "id": "dept_009", "name": "Customer Support", "code": "CS" },
+    { "id": "dept_010", "name": "Customer Success", "code": "CST" },
+
+    { "id": "dept_011", "name": "Information Technology", "code": "IT" },
+    { "id": "dept_012", "name": "Software Development", "code": "SD" },
+    { "id": "dept_013", "name": "Frontend Development", "code": "FE" },
+    { "id": "dept_014", "name": "Backend Development", "code": "BE" },
+    { "id": "dept_015", "name": "Mobile App Development", "code": "MAD" },
+    { "id": "dept_016", "name": "DevOps", "code": "DEVOPS" },
+    { "id": "dept_017", "name": "Cloud Engineering", "code": "CLOUD" },
+    { "id": "dept_018", "name": "Data Science", "code": "DS" },
+    { "id": "dept_019", "name": "Data Analytics", "code": "DA" },
+    { "id": "dept_020", "name": "Quality Assurance", "code": "QA" },
+
+    { "id": "dept_021", "name": "UI/UX Design", "code": "UX" },
+    { "id": "dept_022", "name": "Product Management", "code": "PM" },
+    { "id": "dept_023", "name": "Project Management Office", "code": "PMO" },
+    { "id": "dept_024", "name": "Operations", "code": "OPS" },
+    { "id": "dept_025", "name": "Administration", "code": "ADMIN" },
+    { "id": "dept_026", "name": "Legal & Compliance", "code": "LEGAL" },
+    { "id": "dept_027", "name": "Procurement", "code": "PROC" },
+    { "id": "dept_028", "name": "Supply Chain Management", "code": "SCM" },
+    { "id": "dept_029", "name": "Logistics", "code": "LOG" },
+    { "id": "dept_030", "name": "Warehouse Management", "code": "WH" },
+
+    { "id": "dept_031", "name": "Research & Development", "code": "RND" },
+    { "id": "dept_032", "name": "Security", "code": "SEC" },
+    { "id": "dept_033", "name": "Facilities Management", "code": "FM" },
+    { "id": "dept_034", "name": "Training & Development", "code": "TND" },
+    { "id": "dept_035", "name": "Internal Audit", "code": "IA" },
+    { "id": "dept_036", "name": "Corporate Communications", "code": "CC" },
+    { "id": "dept_037", "name": "Public Relations", "code": "PR" },
+    { "id": "dept_038", "name": "E-commerce", "code": "ECOM" },
+    { "id": "dept_039", "name": "Strategy & Planning", "code": "SP" },
+    { "id": "dept_040", "name": "Innovation Lab", "code": "INNO" }
+  ]
+}
