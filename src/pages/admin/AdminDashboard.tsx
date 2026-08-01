@@ -493,7 +493,10 @@ export default function AdminDashboard() {
         <div className="adm-greeting flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
-              {getGreeting()}, {user?.name?.split(' ')[0] ?? 'Admin'}! 👋
+              {getGreeting()}, {(() => {
+                const first = user?.name?.split(' ')[0];
+                return first && first.toLowerCase() !== 'super' ? first : 'Admin';
+              })()}! 👋
             </h2>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '4px 0 0' }}>
               Here's what's happening across your organization today.
